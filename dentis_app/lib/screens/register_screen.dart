@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../widgets/custom_textfield.dart';
 import '../data/models/usuario_model.dart';
 import '../data/repositories/usuario_repository.dart';
@@ -18,10 +17,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final passwordController = TextEditingController();
 
   final UsuarioRepository repository = UsuarioRepository();
-
   bool isLoading = false;
 
-  Future<void> register() async {
+  Future register() async {
     final name = nameController.text.trim();
     final email = emailController.text.trim();
     final phone = phoneController.text.trim();
@@ -58,10 +56,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           context,
         ).showSnackBar(const SnackBar(content: Text("No se pudo registrar")));
       }
-    } catch (_) {
+    } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Error de conexión")));
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
 
     if (mounted) setState(() => isLoading = false);
@@ -88,13 +86,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Positioned.fill(
               child: Image.asset("assets/images/fondo.jpg", fit: BoxFit.cover),
             ),
-
             Container(color: Colors.white.withOpacity(0.45)),
 
             SafeArea(
               child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 10,
@@ -106,7 +101,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Image.asset("assets/images/logo.png", height: 110),
-
                         const SizedBox(height: 10),
 
                         const Text(
@@ -121,12 +115,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 20),
 
                         Container(
-                          width: double.infinity,
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.92),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFD4AF37)),
+                            border: Border.all(color: Color(0xFFD4AF37)),
                           ),
                           child: Column(
                             children: [
@@ -135,19 +128,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 icon: Icons.person,
                                 controller: nameController,
                               ),
-
                               CustomTextField(
                                 hint: "Correo",
                                 icon: Icons.email,
                                 controller: emailController,
                               ),
-
                               CustomTextField(
                                 hint: "Teléfono",
                                 icon: Icons.phone,
                                 controller: phoneController,
                               ),
-
                               CustomTextField(
                                 hint: "Contraseña",
                                 icon: Icons.lock,
@@ -155,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 obscureText: true,
                               ),
 
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 15),
 
                               SizedBox(
                                 width: double.infinity,
@@ -166,32 +156,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     backgroundColor: const Color(0xFFD4AF37),
                                   ),
                                   child: isLoading
-                                      ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.black,
-                                          ),
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.black,
+                                          strokeWidth: 2,
                                         )
                                       : const Text(
                                           "REGISTRAR",
                                           style: TextStyle(color: Colors.black),
                                         ),
                                 ),
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text("¿Ya tienes cuenta?"),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text("Login"),
-                                  ),
-                                ],
                               ),
                             ],
                           ),

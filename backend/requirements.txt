@@ -1,3 +1,5 @@
 Flask
-Flask-Cors
+flask-cors
 psycopg2-binary
+bcrypt
+cryptography
