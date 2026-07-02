@@ -40,4 +40,11 @@ flutter:
 
   assets:
     - assets/images/logo.png
+    - assets/images/diente.jpg
+    - assets/images/diente1.jpg
+    - assets/images/diente2.jpg
     - assets/images/fondo.jpg
+    - assets/images/fondo1.jpg
+    - assets/images/fondo2.jpg
+    - assets/images/fondo3.jpg
+    

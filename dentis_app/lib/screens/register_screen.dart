@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/custom_textfield.dart';
 import '../data/models/usuario_model.dart';
 import '../data/repositories/usuario_repository.dart';
 
@@ -7,7 +6,7 @@ class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
@@ -17,22 +16,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final passwordController = TextEditingController();
 
   final UsuarioRepository repository = UsuarioRepository();
-  bool isLoading = false;
+
+  bool loading = false;
+
+  void _msg(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   Future register() async {
     final name = nameController.text.trim();
-    final email = emailController.text.trim();
+    final email = emailController.text.trim().toLowerCase();
     final phone = phoneController.text.trim();
     final password = passwordController.text.trim();
 
     if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Completa todos los campos")),
-      );
+      _msg("Completa todos los campos");
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() => loading = true);
 
     try {
       final usuario = UsuarioModel(
@@ -46,136 +53,124 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
+      setState(() => loading = false);
+
       if (ok) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Usuario registrado")));
+        _msg("Usuario registrado correctamente");
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("No se pudo registrar")));
+        _msg("Error al registrar usuario");
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      setState(() => loading = false);
+      _msg("Error: $e");
     }
-
-    if (mounted) setState(() => isLoading = false);
-  }
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
-    passwordController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
-      resizeToAvoidBottomInset: true,
-      body: SizedBox.expand(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset("assets/images/fondo.jpg", fit: BoxFit.cover),
+      body: Stack(
+        children: [
+          // BACKGROUND
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFF071A12),
+                  Color(0xFF0B3D2E),
+                  Color(0xFF145A32)
+                ],
+              ),
             ),
-            Container(color: Colors.white.withOpacity(0.45)),
+          ),
 
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: size.height - 40),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset("assets/images/logo.png", height: 110),
-                        const SizedBox(height: 10),
-
-                        const Text(
-                          "REGISTRO",
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFD4AF37),
-                          ),
+          Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Container(
+                  padding: const EdgeInsets.all(25),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.person_add,
+                          size: 70, color: Colors.white),
+                      const SizedBox(height: 10),
+                      const Text(
+                        "CREAR CUENTA",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-
-                        const SizedBox(height: 20),
-
-                        Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.92),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Color(0xFFD4AF37)),
+                      ),
+                      const SizedBox(height: 25),
+                      _input(nameController, "Nombre", Icons.person),
+                      const SizedBox(height: 15),
+                      _input(emailController, "Correo", Icons.email),
+                      const SizedBox(height: 15),
+                      _input(phoneController, "Teléfono", Icons.phone),
+                      const SizedBox(height: 15),
+                      _input(passwordController, "Contraseña", Icons.lock,
+                          obscure: true),
+                      const SizedBox(height: 25),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.green,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
                           ),
-                          child: Column(
-                            children: [
-                              CustomTextField(
-                                hint: "Nombre",
-                                icon: Icons.person,
-                                controller: nameController,
-                              ),
-                              CustomTextField(
-                                hint: "Correo",
-                                icon: Icons.email,
-                                controller: emailController,
-                              ),
-                              CustomTextField(
-                                hint: "Teléfono",
-                                icon: Icons.phone,
-                                controller: phoneController,
-                              ),
-                              CustomTextField(
-                                hint: "Contraseña",
-                                icon: Icons.lock,
-                                controller: passwordController,
-                                obscureText: true,
-                              ),
-
-                              const SizedBox(height: 15),
-
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton(
-                                  onPressed: isLoading ? null : register,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFD4AF37),
-                                  ),
-                                  child: isLoading
-                                      ? const CircularProgressIndicator(
-                                          color: Colors.black,
-                                          strokeWidth: 2,
-                                        )
-                                      : const Text(
-                                          "REGISTRAR",
-                                          style: TextStyle(color: Colors.black),
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          onPressed: loading ? null : register,
+                          child: loading
+                              ? const CircularProgressIndicator()
+                              : const Text("REGISTRAR"),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
+          ),
+
+          if (loading)
+            Container(
+              color: Colors.black.withOpacity(0.4),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _input(TextEditingController c, String label, IconData icon,
+      {bool obscure = false}) {
+    return TextField(
+      controller: c,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: Colors.white70),
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.white24),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.white),
         ),
       ),
     );

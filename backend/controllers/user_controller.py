@@ -1,61 +1,54 @@
 from database import get_connection
 import bcrypt
-import jwt
-import datetime
-from cryptography.fernet import Fernet
-from config.settings import KEY_FERNET
-from config.jwt_config import SECRET_KEY, ALGORITHM
-
-fernet = Fernet(KEY_FERNET)
 
 
 # ================= REGISTER =================
 def register_user(data):
-    nombre = data["nombre"]
-    email = data["email"]
-    telefono = data["telefono"]
-    password = data["password"]
-    rol = data.get("rol", "usuario")
-
-    password_hash = bcrypt.hashpw(
-        password.encode("utf-8"),
-        bcrypt.gensalt()
-    ).decode("utf-8")
-
-    telefono_encriptado = fernet.encrypt(
-        telefono.encode("utf-8")
-    ).decode("utf-8")
-
     conn = get_connection()
-    cursor = conn.cursor()
+    if not conn:
+        return False
 
-    cursor.execute("""
-        INSERT INTO usuarios (nombre, email, telefono, password, rol)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id
-    """, (nombre, email, telefono_encriptado, password_hash, rol))
+    try:
+        cursor = conn.cursor()
 
-    user_id = cursor.fetchone()[0]
+        hashed_password = bcrypt.hashpw(
+            data["password"].encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
 
-    conn.commit()
-    cursor.close()
-    conn.close()
+        cursor.execute("""
+            INSERT INTO usuarios(nombre,email,telefono,password,rol)
+            VALUES(%s,%s,%s,%s,%s)
+        """, (
+            data["nombre"],
+            data["email"],
+            data["telefono"],
+            hashed_password,
+            "usuario"
+        ))
 
-    return user_id
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+
+    except Exception as e:
+        print("REGISTER ERROR:", e)
+        return False
 
 
 # ================= LOGIN =================
-def login_user(data):
-    email = data["email"]
-    password = data["password"]
-
+def login_user(email, password):
     conn = get_connection()
+    if not conn:
+        return None
+
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, nombre, email, password, rol
+        SELECT id, nombre, email, telefono, password, rol
         FROM usuarios
-        WHERE email = %s
+        WHERE email=%s
     """, (email,))
 
     user = cursor.fetchone()
@@ -63,61 +56,86 @@ def login_user(data):
     cursor.close()
     conn.close()
 
-    if user and bcrypt.checkpw(
+    if not user:
+        return None
+
+    if not bcrypt.checkpw(
         password.encode("utf-8"),
-        user[3].encode("utf-8")
+        user[4].encode("utf-8")
     ):
-        return {
-            "id": user[0],
-            "nombre": user[1],
-            "email": user[2],
-            "rol": user[4]
-        }
+        return None
 
-    return None
-
-
-# ================= GENERAR TOKEN JWT =================
-def generate_token(user):
-    payload = {
-        "id": user["id"],
-        "nombre": user["nombre"],
-        "email": user["email"],
-        "rol": user["rol"],
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+    return {
+        "id": user[0],
+        "nombre": user[1],
+        "email": user[2],
+        "telefono": user[3],
+        "rol": user[5]
     }
 
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-    return token
-
-
-# ================= GET USERS =================
-def get_users():
+# ================= FORGOT PASSWORD =================
+def forgot_password_user(email):
     conn = get_connection()
-    cursor = conn.cursor()
+    if not conn:
+        return False
 
-    cursor.execute("""
-        SELECT id, nombre, email, telefono, rol
-        FROM usuarios
-        ORDER BY id DESC
-    """)
+    try:
+        cursor = conn.cursor()
 
-    rows = cursor.fetchall()
-    usuarios = []
+        cursor.execute("""
+            SELECT id
+            FROM usuarios
+            WHERE email=%s
+        """, (email,))
 
-    for row in rows:
-        telefono = fernet.decrypt(row[3].encode()).decode()
+        user = cursor.fetchone()
 
-        usuarios.append({
-            "id": row[0],
-            "nombre": row[1],
-            "email": row[2],
-            "telefono": telefono,
-            "rol": row[4]
-        })
+        cursor.close()
+        conn.close()
 
-    cursor.close()
-    conn.close()
+        if not user:
+            return False
 
-    return usuarios
+        return True
+
+    except Exception as e:
+        print("FORGOT PASSWORD ERROR:", e)
+        return False
+
+
+# ================= RESET PASSWORD =================
+def reset_password_user(email, new_password):
+    conn = get_connection()
+    if not conn:
+        return False
+
+    try:
+        cursor = conn.cursor()
+
+        hashed_password = bcrypt.hashpw(
+            new_password.encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
+
+        cursor.execute("""
+            UPDATE usuarios
+            SET password=%s
+            WHERE email=%s
+        """, (
+            hashed_password,
+            email
+        ))
+
+        conn.commit()
+
+        updated = cursor.rowcount
+
+        cursor.close()
+        conn.close()
+
+        return updated > 0
+
+    except Exception as e:
+        print("RESET PASSWORD ERROR:", e)
+        return False

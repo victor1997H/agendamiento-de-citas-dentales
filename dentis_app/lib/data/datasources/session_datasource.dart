@@ -19,4 +19,8 @@ class SessionDataSource {
   }
 
   static bool get isLoggedIn => token.isNotEmpty;
+
+  static bool get isAdmin => rol == "admin";
+  static bool get isDoctor => rol == "doctor";
+  static bool get isUser => rol == "usuario";
 }

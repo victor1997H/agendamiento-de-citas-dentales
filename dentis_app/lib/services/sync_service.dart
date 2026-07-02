@@ -1,7 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import  'api_client.dart';
-import 'local_database.dart';
+import  '../data/datasources/api_client.dart';
+import '../data/datasources/local_database.dart';
 
 class SyncService {
   static Future<void> sincronizar() async {

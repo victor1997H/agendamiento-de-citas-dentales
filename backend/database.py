@@ -10,7 +10,6 @@ def get_connection():
             password="12345"
         )
         return connection
-
     except Exception as e:
         print("ERROR CONEXIÓN POSTGRES:", e)
         return None

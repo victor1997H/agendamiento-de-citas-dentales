@@ -1,14 +1,10 @@
 from flask import Blueprint, request, jsonify
-
 from controllers.user_controller import (
-    register_user,
     login_user,
-    get_users,
-    generate_token
+    register_user,
+    forgot_password_user,
+    reset_password_user,
 )
-
-from middlewares.jwt_auth import token_required
-
 
 user_bp = Blueprint("user_bp", __name__)
 
@@ -19,14 +15,20 @@ def register():
     try:
         data = request.get_json()
 
-        user_id = register_user(data)
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data"
+            }), 400
+
+        ok = register_user(data)
 
         return jsonify({
-            "success": True,
-            "id": user_id
-        }), 201
+            "success": ok
+        }), 201 if ok else 400
 
     except Exception as e:
+        print("REGISTER ROUTE ERROR:", e)
         return jsonify({
             "success": False,
             "error": str(e)
@@ -39,15 +41,22 @@ def login():
     try:
         data = request.get_json()
 
-        user = login_user(data)
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data"
+            }), 400
+
+        user = login_user(
+            data.get("email"),
+            data.get("password")
+        )
 
         if user:
-            token = generate_token(user)
-
             return jsonify({
                 "success": True,
                 "usuario": user,
-                "token": token
+                "token": "fake-token"
             }), 200
 
         return jsonify({
@@ -56,25 +65,96 @@ def login():
         }), 401
 
     except Exception as e:
+        print("LOGIN ROUTE ERROR:", e)
         return jsonify({
             "success": False,
             "error": str(e)
         }), 500
 
 
-# ================= GET USERS (PROTEGIDO JWT) =================
-@user_bp.route("/usuarios", methods=["GET"])
-@token_required
-def users():
+# ================= FORGOT PASSWORD =================
+@user_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
     try:
-        usuarios = get_users()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data"
+            }), 400
+
+        email = data.get("email")
+
+        if not email:
+            return jsonify({
+                "success": False,
+                "message": "Email requerido"
+            }), 400
+
+        ok = forgot_password_user(email)
+
+        if ok:
+            return jsonify({
+                "success": True,
+                "message": "Correo encontrado"
+            }), 200
 
         return jsonify({
-            "success": True,
-            "data": usuarios
-        }), 200
+            "success": False,
+            "message": "Correo no encontrado"
+        }), 404
 
     except Exception as e:
+        print("FORGOT PASSWORD ROUTE ERROR:", e)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ================= RESET PASSWORD =================
+@user_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data"
+            }), 400
+
+        email = data.get("email")
+        new_password = data.get("new_password")
+
+        if not email or not new_password:
+            return jsonify({
+                "success": False,
+                "message": "Email y nueva contraseña son requeridos"
+            }), 400
+
+        if len(new_password) < 6:
+            return jsonify({
+                "success": False,
+                "message": "La contraseña debe tener mínimo 6 caracteres"
+            }), 400
+
+        ok = reset_password_user(email, new_password)
+
+        if ok:
+            return jsonify({
+                "success": True,
+                "message": "Contraseña actualizada correctamente"
+            }), 200
+
+        return jsonify({
+            "success": False,
+            "message": "Correo no encontrado"
+        }), 404
+
+    except Exception as e:
+        print("RESET PASSWORD ROUTE ERROR:", e)
         return jsonify({
             "success": False,
             "error": str(e)
