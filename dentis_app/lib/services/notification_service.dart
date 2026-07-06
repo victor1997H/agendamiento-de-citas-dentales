@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -36,24 +37,28 @@ class NotificationService {
 
     final id = cita.id ?? date.millisecondsSinceEpoch.remainder(100000);
 
-    await _plugin.zonedSchedule(
-      id,
-      'Recordatorio de cita odontológica',
-      '${cita.servicio} con ${cita.doctor} a las ${cita.horaCorta}',
-      tz.TZDateTime.from(scheduledAt, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'citas_recordatorios',
-          'Recordatorios de citas',
-          channelDescription: 'Avisos antes de tus citas odontológicas',
-          importance: Importance.high,
-          priority: Priority.high,
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        'Recordatorio de cita odontológica',
+        '${cita.servicio} con ${cita.doctor} a las ${cita.horaCorta}',
+        tz.TZDateTime.from(scheduledAt, tz.local),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'citas_recordatorios',
+            'Recordatorios de citas',
+            channelDescription: 'Avisos antes de tus citas odontológicas',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } on PlatformException catch (_) {
+      return;
+    }
   }
 }
