@@ -1,16 +1,21 @@
 from functools import wraps
 from flask import request, jsonify
 
-def role_required(role):
+
+def role_required(*roles):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if not hasattr(request, "user"):
-                return jsonify({"message": "No autenticado"}), 401
+            user = getattr(request, "user", None)
 
-            if request.user["rol"] != role:
-                return jsonify({"message": "No autorizado"}), 403
+            if not user or user.get("rol") not in roles:
+                return jsonify({
+                    "success": False,
+                    "message": "No tienes permiso para esta acción"
+                }), 403
 
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

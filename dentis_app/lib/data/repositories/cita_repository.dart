@@ -1,24 +1,16 @@
 import '../datasources/api_client.dart';
+import '../models/cita_model.dart';
 
 class CitaRepository {
-
-  // 🔥 obtener todas las citas
-  Future<List<dynamic>> getCitas() async {
-    return await ApiClient.getCitas();
+  Future<List<CitaModel>> getMisCitas() async {
+    return await ApiClient.getMisCitas();
   }
 
-  // 🔥 crear nueva cita
-  Future<bool> crearCita(Map<String, dynamic> data) async {
-    return await ApiClient.crearCita(data);
+  Future<bool> crearCita(CitaModel cita) async {
+    return await ApiClient.crearCita(cita);
   }
 
-  // 🔥 actualizar estado de cita
-  Future<bool> actualizarCita(Map<String, dynamic> data) async {
-    return await ApiClient.actualizarCita(data);
-  }
-
-  // 🔥 eliminar cita (opcional)
-  Future<bool> eliminarCita(int id) async {
-    return await ApiClient.eliminarCita(id);
+  Future<bool> cancelarCita(int id) async {
+    return await ApiClient.cancelarCita(id);
   }
 }

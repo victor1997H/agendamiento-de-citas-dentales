@@ -1,4 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
+import jwt
 from flask import Blueprint, request, jsonify
+
+from config.jwt_config import SECRET_KEY, ALGORITHM
 from controllers.user_controller import (
     login_user,
     register_user,
@@ -7,6 +12,24 @@ from controllers.user_controller import (
 )
 
 user_bp = Blueprint("user_bp", __name__)
+
+
+def create_token(user):
+    payload = {
+        "id": user["id"],
+        "nombre": user["nombre"],
+        "email": user["email"],
+        "rol": user["rol"],
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+    }
+
+    token = jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+    return token
 
 
 # ================= REGISTER =================
@@ -56,7 +79,7 @@ def login():
             return jsonify({
                 "success": True,
                 "usuario": user,
-                "token": "fake-token"
+                "token": create_token(user)
             }), 200
 
         return jsonify({

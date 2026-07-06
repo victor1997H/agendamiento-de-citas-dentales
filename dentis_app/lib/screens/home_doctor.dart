@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+
+import '../data/datasources/session_datasource.dart';
+import '../data/models/cita_model.dart';
+import '../data/repositories/doctor_repository.dart';
 import 'login_screen.dart';
 
 class DoctorHome extends StatefulWidget {
   final Map<String, dynamic> user;
+
   const DoctorHome({super.key, required this.user});
 
   @override
@@ -10,32 +15,82 @@ class DoctorHome extends StatefulWidget {
 }
 
 class _DoctorHomeState extends State<DoctorHome> {
+  final DoctorRepository repository = DoctorRepository();
+
   int selectedIndex = 0;
+  bool loading = true;
+
+  List<CitaModel> citasHoy = [];
+  List<Map<String, dynamic>> pacientes = [];
+
+  Map<String, dynamic> resumen = {
+    "citas_hoy": 0,
+    "completadas": 0,
+    "pendientes": 0,
+    "este_mes": 0,
+  };
 
   static const Color fondo = Color(0xff08151B);
-  static const Color panel = Color(0xff102832);
-  static const Color panelClaro = Color(0xff18323B);
-  static const Color azulMate = Color(0xff2F6F88);
-  static const Color azulOscuro = Color(0xff1F4F63);
+  static const Color panel = Color(0xff18323B);
+  static const Color verde = Color(0xff2DB58D);
+  static const Color verdeOscuro = Color(0xff1C9B78);
   static const Color textoSuave = Color(0xff9FC7D3);
-  static const Color verdeMate = Color(0xff2FA884);
-  static const Color amarillo = Color(0xffF4B728);
-  static const Color azulNumero = Color(0xff63A7FF);
   static const Color rojoSalir = Color(0xffD95B6A);
 
+  @override
+  void initState() {
+    super.initState();
+    cargar();
+  }
+
+  Future<void> cargar() async {
+    setState(() => loading = true);
+
+    final resumenData = await repository.getResumen();
+    final citasData = await repository.getCitasHoy();
+    final pacientesData = await repository.getPacientes();
+
+    if (!mounted) return;
+
+    setState(() {
+      resumen = resumenData;
+      citasHoy = citasData;
+      pacientes = pacientesData;
+      loading = false;
+    });
+  }
+
+  Future<void> cambiarEstado(CitaModel cita, String estado) async {
+    if (cita.id == null) return;
+
+    final ok = await repository.actualizarEstado(cita.id!, estado);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? "Cita actualizada" : "No se pudo actualizar"),
+      ),
+    );
+
+    if (ok) {
+      cargar();
+    }
+  }
+
   void salir() {
+    SessionDataSource.clear();
+
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final nombre = widget.user["nombre"] ?? "Roberto Méndez";
+    final nombre = widget.user["nombre"] ?? "Doctor";
 
     return Scaffold(
       backgroundColor: fondo,
@@ -43,48 +98,16 @@ class _DoctorHomeState extends State<DoctorHome> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _header(nombre),
-                    const SizedBox(height: 22),
-                    _saludoCard(),
-                    const SizedBox(height: 16),
-                    _statsGrid(),
-                    const SizedBox(height: 18),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 18),
-                      child: Text(
-                        "Agenda de hoy",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _citaPaciente(
-                      nombre: "María García",
-                      detalle: "Limpieza Dental - 45min",
-                      hora: "09:00",
-                      estado: "Completada",
-                    ),
-                    _citaPaciente(
-                      nombre: "Carlos Ruiz",
-                      detalle: "Ortodoncia - 60min",
-                      hora: "10:30",
-                      estado: "Confirmada",
-                    ),
-                    _citaPaciente(
-                      nombre: "Ana López",
-                      detalle: "Blanqueamiento - 50min",
-                      hora: "12:00",
-                      estado: "Pendiente",
-                    ),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: cargar,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                  child: selectedIndex == 2
+                      ? _pacientesView()
+                      : selectedIndex == 1
+                          ? _agendaView()
+                          : _panelView(nombre),
                 ),
               ),
             ),
@@ -95,85 +118,165 @@ class _DoctorHomeState extends State<DoctorHome> {
     );
   }
 
-  Widget _header(String nombre) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Panel Médico",
-                  style: TextStyle(
-                    color: verdeMate,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Dr. $nombre",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+  Widget _panelView(String nombre) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _header(nombre),
+        const SizedBox(height: 22),
+        _heroCard(),
+        const SizedBox(height: 22),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 1.05,
+          children: [
+            _stat(
+                "Citas hoy", resumen["citas_hoy"], Icons.calendar_today, verde),
+            _stat("Completadas", resumen["completadas"],
+                Icons.check_circle_outline, verde),
+            _stat("Pendientes", resumen["pendientes"], Icons.hourglass_empty,
+                Colors.amber),
+            _stat("Este mes", resumen["este_mes"], Icons.trending_up,
+                Colors.blueAccent),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          "Agenda de hoy",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
           ),
-          _circleButton(Icons.notifications_none, azulOscuro, textoSuave),
-          const SizedBox(width: 10),
-          _circleButton(Icons.medical_services, verdeMate, Colors.white),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        _agendaList(showActions: false),
+      ],
     );
   }
 
-  Widget _saludoCard() {
+  Widget _agendaView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Agenda",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          "Gestiona las citas de hoy",
+          style: TextStyle(color: textoSuave, fontSize: 15),
+        ),
+        const SizedBox(height: 18),
+        _agendaList(showActions: true),
+      ],
+    );
+  }
+
+  Widget _pacientesView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Pacientes",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 18),
+        if (loading)
+          const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          )
+        else if (pacientes.isEmpty)
+          const Text(
+            "No hay pacientes registrados",
+            style: TextStyle(color: textoSuave),
+          )
+        else
+          ...pacientes.map(_pacienteCard),
+      ],
+    );
+  }
+
+  Widget _header(String nombre) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Panel Medico",
+                style: TextStyle(
+                  color: verde,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                nombre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _circle(Icons.notifications_none, const Color(0xff1F4F63)),
+        const SizedBox(width: 10),
+        _circle(Icons.medical_services, verde),
+      ],
+    );
+  }
+
+  Widget _heroCard() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 18),
+      width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xff2FA884),
-            Color(0xff1F7F69),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: verdeOscuro,
+        borderRadius: BorderRadius.circular(28),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Jueves, 2 de Julio 2026",
-            style: TextStyle(
-              color: Color(0xffD8EEF3),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            "¡Buen día, Doctor!",
+          const Text(
+            "Buen dia, Doctor!",
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 23,
+              fontSize: 26,
               fontWeight: FontWeight.bold,
             ),
           ),
-          SizedBox(height: 18),
-          Row(
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              _InfoPill(
-                  icon: Icons.monitor_heart_outlined, text: "4 citas hoy"),
-              SizedBox(width: 10),
-              _InfoPill(icon: Icons.access_time, text: "08:00 - 17:00"),
+              _pill(
+                Icons.monitor_heart_outlined,
+                "${resumen["citas_hoy"]} citas hoy",
+              ),
+              _pill(Icons.access_time, "08:00 - 17:00"),
             ],
           ),
         ],
@@ -181,60 +284,10 @@ class _DoctorHomeState extends State<DoctorHome> {
     );
   }
 
-  Widget _statsGrid() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.35,
-        children: [
-          _statCard(
-            titulo: "Citas hoy",
-            numero: "4",
-            icon: Icons.calendar_today_outlined,
-            colorNumero: verdeMate,
-            colorIcon: verdeMate,
-          ),
-          _statCard(
-            titulo: "Completadas",
-            numero: "1",
-            icon: Icons.check_circle_outline,
-            colorNumero: verdeMate,
-            colorIcon: verdeMate,
-          ),
-          _statCard(
-            titulo: "Pendientes",
-            numero: "2",
-            icon: Icons.hourglass_empty,
-            colorNumero: amarillo,
-            colorIcon: amarillo,
-          ),
-          _statCard(
-            titulo: "Este mes",
-            numero: "47",
-            icon: Icons.trending_up,
-            colorNumero: azulNumero,
-            colorIcon: azulNumero,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard({
-    required String titulo,
-    required String numero,
-    required IconData icon,
-    required Color colorNumero,
-    required Color colorIcon,
-  }) {
+  Widget _stat(String title, dynamic value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: _panelDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _box(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -242,27 +295,27 @@ class _DoctorHomeState extends State<DoctorHome> {
             children: [
               Expanded(
                 child: Text(
-                  titulo,
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textoSuave,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              Icon(
-                icon,
-                color: colorIcon,
-                size: 18,
-              ),
+              Icon(icon, color: color, size: 24),
             ],
           ),
           const Spacer(),
           Text(
-            numero,
+            "${value ?? 0}",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: colorNumero,
-              fontSize: 30,
+              color: color,
+              fontSize: 34,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -271,85 +324,158 @@ class _DoctorHomeState extends State<DoctorHome> {
     );
   }
 
-  Widget _citaPaciente({
-    required String nombre,
-    required String detalle,
-    required String hora,
-    required String estado,
-  }) {
+  Widget _agendaList({required bool showActions}) {
+    if (loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
+    if (citasHoy.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: _box(),
+        child: const Text(
+          "No hay citas para hoy",
+          style: TextStyle(color: textoSuave),
+        ),
+      );
+    }
+
+    return Column(
+      children: citasHoy.map((cita) {
+        return _citaCard(cita, showActions);
+      }).toList(),
+    );
+  }
+
+  Widget _citaCard(CitaModel cita, bool showActions) {
+    final color = _estadoColor(cita);
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(15),
-      decoration: _panelDecoration(),
+      decoration: _box(),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: const Color(0xff1F4F63),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.medical_services,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cita.paciente.isEmpty ? "Paciente" : cita.paciente,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "${cita.servicio} - ${cita.duracion}min",
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: verde,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    cita.horaCorta,
+                    style: const TextStyle(
+                      color: verde,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _estadoChip(cita.estado, color),
+                ],
+              ),
+            ],
+          ),
+          if (showActions) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _action("Confirmar", () => cambiarEstado(cita, "confirmada")),
+                _action("Completar", () => cambiarEstado(cita, "completada")),
+                _action("Cancelar", () => cambiarEstado(cita, "cancelada")),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _pacienteCard(Map<String, dynamic> paciente) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: _box(),
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: azulOscuro,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Center(
-              child: Text(
-                "🦷",
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
+          const CircleAvatar(
+            backgroundColor: Color(0xff1F4F63),
+            child: Icon(Icons.person, color: Colors.white),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  nombre,
+                  paciente["nombre"]?.toString() ?? "Paciente",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  detalle,
-                  style: const TextStyle(
-                    color: verdeMate,
-                    fontSize: 12,
-                  ),
+                  paciente["email"]?.toString() ?? "",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: textoSuave),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  paciente["telefono"]?.toString() ?? "",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: textoSuave),
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                hora,
-                style: const TextStyle(
-                  color: verdeMate,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: azulMate.withOpacity(.22),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  estado,
-                  style: const TextStyle(
-                    color: textoSuave,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -368,16 +494,16 @@ class _DoctorHomeState extends State<DoctorHome> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _navItem(Icons.grid_view_rounded, "Panel", 0),
-          _navItem(Icons.calendar_today_outlined, "Agenda", 1),
-          _navItem(Icons.group_outlined, "Pacientes", 2),
-          _navItem(Icons.logout, "Salir", 3, isExit: true),
+          _nav(Icons.grid_view_rounded, "Panel", 0),
+          _nav(Icons.calendar_today_outlined, "Agenda", 1),
+          _nav(Icons.people_outline, "Pacientes", 2),
+          _nav(Icons.logout, "Salir", 3, isExit: true),
         ],
       ),
     );
   }
 
-  Widget _navItem(
+  Widget _nav(
     IconData icon,
     String label,
     int index, {
@@ -387,7 +513,7 @@ class _DoctorHomeState extends State<DoctorHome> {
     final color = isExit
         ? rojoSalir
         : active
-            ? textoSuave
+            ? Colors.white
             : Colors.white38;
 
     return GestureDetector(
@@ -402,29 +528,27 @@ class _DoctorHomeState extends State<DoctorHome> {
         });
       },
       child: SizedBox(
-        width: 70,
+        width: 78,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: active && !isExit ? verdeMate : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
+                color: active && !isExit ? verde : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                icon,
-                color: active && !isExit ? Colors.white : color,
-                size: 23,
-              ),
+              child: Icon(icon, color: color),
             ),
             const SizedBox(height: 4),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: color,
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -434,68 +558,95 @@ class _DoctorHomeState extends State<DoctorHome> {
     );
   }
 
-  Widget _circleButton(IconData icon, Color bg, Color iconColor) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: bg,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        color: iconColor,
-        size: 22,
-      ),
-    );
-  }
-
-  BoxDecoration _panelDecoration() {
-    return BoxDecoration(
-      color: panelClaro,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: Colors.white.withOpacity(.08),
+  Widget _action(String text, VoidCallback onTap) {
+    return SizedBox(
+      height: 38,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: BorderSide(color: Colors.white.withOpacity(.18)),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12),
+        ),
       ),
     );
   }
-}
 
-class _InfoPill extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _InfoPill({
-    required this.icon,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _pill(IconData icon, String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.18),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withOpacity(.16),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 16,
-          ),
-          const SizedBox(width: 6),
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
           Text(
             text,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _circle(IconData icon, Color color) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: Colors.white),
+    );
+  }
+
+  Widget _estadoChip(String estado, Color color) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 104),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.16),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        estado,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Color _estadoColor(CitaModel cita) {
+    if (cita.estaCompletada) return verde;
+    if (cita.estaConfirmada) return textoSuave;
+    if (cita.estaCancelada) return rojoSalir;
+    return Colors.amber;
+  }
+
+  BoxDecoration _box() {
+    return BoxDecoration(
+      color: panel,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white.withOpacity(.08)),
     );
   }
 }

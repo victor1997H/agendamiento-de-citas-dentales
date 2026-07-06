@@ -90,6 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
         fit: StackFit.expand,
         children: [
           Image.asset(
+            
             "assets/images/fondo1.jpg",
             fit: BoxFit.fill,
             alignment: Alignment.center,

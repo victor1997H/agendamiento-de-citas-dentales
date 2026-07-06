@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+
+import '../data/datasources/session_datasource.dart';
+import '../data/models/cita_model.dart';
+import '../data/repositories/cita_repository.dart';
 import 'login_screen.dart';
+import 'mis_citas_screen.dart';
+import 'nueva_cita_screen.dart';
 
 class UserHome extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -10,10 +16,13 @@ class UserHome extends StatefulWidget {
 }
 
 class _UserHomeState extends State<UserHome> {
+  final CitaRepository repository = CitaRepository();
+
   int selectedIndex = 0;
+  bool loading = true;
+  List<CitaModel> citas = [];
 
   static const Color fondo = Color(0xff08151B);
-  static const Color panel = Color(0xff102832);
   static const Color panelClaro = Color(0xff18323B);
   static const Color azulMate = Color(0xff2F6F88);
   static const Color azulPrincipal = Color(0xff2F6F88);
@@ -21,19 +30,66 @@ class _UserHomeState extends State<UserHome> {
   static const Color textoSuave = Color(0xff9FC7D3);
   static const Color rojoSalir = Color(0xffD95B6A);
 
+  @override
+  void initState() {
+    super.initState();
+    cargarCitas();
+  }
+
+  Future<void> cargarCitas() async {
+    setState(() => loading = true);
+
+    final data = await repository.getMisCitas();
+
+    if (!mounted) return;
+
+    setState(() {
+      citas = data;
+      loading = false;
+    });
+  }
+
+  Future<void> abrirNuevaCita() async {
+    final creada = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const NuevaCitaScreen()),
+    );
+
+    if (creada == true) {
+      cargarCitas();
+    }
+  }
+
+  Future<void> abrirMisCitas() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MisCitasScreen()),
+    );
+
+    cargarCitas();
+  }
+
   void salir() {
+    SessionDataSource.clear();
+
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
 
+  CitaModel? get proximaCita {
+    final activas = citas.where((cita) => !cita.estaCancelada).toList();
+
+    if (activas.isEmpty) return null;
+
+    return activas.first;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final nombre = widget.user["nombre"] ?? "María García";
+    final nombre = widget.user["nombre"] ?? "Usuario";
 
     return Scaffold(
       backgroundColor: fondo,
@@ -41,50 +97,37 @@ class _UserHomeState extends State<UserHome> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _header(nombre),
-                    const SizedBox(height: 18),
-                    _citaPrincipal(),
-                    const SizedBox(height: 15),
-                    _nuevaCita(),
-                    const SizedBox(height: 15),
-                    _doctorCard(),
-                    const SizedBox(height: 18),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 18),
-                      child: Text(
-                        "Historial reciente",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+              child: RefreshIndicator(
+                onRefresh: cargarCitas,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _header(nombre),
+                      const SizedBox(height: 18),
+                      _citaPrincipal(),
+                      const SizedBox(height: 15),
+                      _nuevaCita(),
+                      const SizedBox(height: 15),
+                      _doctorCard(),
+                      const SizedBox(height: 18),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 18),
+                        child: Text(
+                          "Historial reciente",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    _historial(
-                      titulo: "Limpieza Dental",
-                      fecha: "2026-07-10 10:00",
-                      estado: "Confirmada",
-                      colorEstado: azulPrincipal,
-                    ),
-                    _historial(
-                      titulo: "Blanqueamiento",
-                      fecha: "2026-07-18 14:30",
-                      estado: "Pendiente",
-                      colorEstado: Color(0xffC78A2D),
-                    ),
-                    _historial(
-                      titulo: "Control Dental",
-                      fecha: "2026-07-25 09:00",
-                      estado: "Pendiente",
-                      colorEstado: Color(0xffC78A2D),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      _historialReciente(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -105,19 +148,21 @@ class _UserHomeState extends State<UserHome> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Bienvenida 👋",
+                  "Bienvenida",
                   style: TextStyle(
                     color: textoSuave,
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   nombre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 21,
+                    fontSize: 27,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -133,96 +178,100 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _citaPrincipal() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 18),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: azulPrincipal,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "🦷 Limpieza Dental",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            "Dr. Roberto Méndez",
-            style: TextStyle(
-              color: Color(0xffD8EEF3),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 18),
-          Row(
-            children: [
-              _InfoPill(icon: Icons.calendar_today, text: "10 Jul"),
-              SizedBox(width: 10),
-              _InfoPill(icon: Icons.access_time, text: "10:00 hrs"),
-            ],
-          ),
-        ],
+    final cita = proximaCita;
+
+    return GestureDetector(
+      onTap: cita == null ? abrirNuevaCita : abrirMisCitas,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: azulPrincipal,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: loading
+            ? const SizedBox(
+                height: 100,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cita?.servicio ?? "Sin citas agendadas",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    cita?.doctor ?? "Agenda tu primera cita",
+                    style: const TextStyle(
+                      color: Color(0xffD8EEF3),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      _InfoPill(
+                        icon: Icons.calendar_today,
+                        text: cita?.fechaResumen ?? "Nueva cita",
+                      ),
+                      const SizedBox(width: 10),
+                      _InfoPill(
+                        icon: Icons.access_time,
+                        text: cita == null ? "Disponible" : "${cita.horaCorta} hrs",
+                      ),
+                    ],
+                  ),
+                ],
+              ),
       ),
     );
   }
 
   Widget _nuevaCita() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 18),
-      padding: const EdgeInsets.all(16),
-      decoration: _panelDecoration(),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: azulOscuro,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.add,
-              color: textoSuave,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Nueva cita",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: abrirNuevaCita,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.all(16),
+        decoration: _panelDecoration(),
+        child: const Row(
+          children: [
+            Icon(Icons.add, color: textoSuave, size: 38),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Nueva cita",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  "Ver disponibilidad",
-                  style: TextStyle(
-                    color: textoSuave,
-                    fontSize: 12,
+                  Text(
+                    "Ver disponibilidad",
+                    style: TextStyle(color: textoSuave, fontSize: 14),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Icon(
-            Icons.arrow_forward,
-            color: textoSuave,
-            size: 22,
-          ),
-        ],
+            Icon(Icons.arrow_forward, color: textoSuave),
+          ],
+        ),
       ),
     );
   }
@@ -235,17 +284,13 @@ class _UserHomeState extends State<UserHome> {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: azulMate,
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(
-              Icons.medical_services,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Icons.medical_services, color: Colors.white),
           ),
           const SizedBox(width: 14),
           const Expanded(
@@ -256,44 +301,22 @@ class _UserHomeState extends State<UserHome> {
                   "TU DOCTOR",
                   style: TextStyle(
                     color: textoSuave,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 14),
+                SizedBox(height: 10),
                 Text(
-                  "Dr. Roberto Méndez",
+                  "Dr. Roberto Mendez",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 15,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 3),
                 Text(
-                  "Odontólogo General",
-                  style: TextStyle(
-                    color: textoSuave,
-                    fontSize: 12,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.star, color: Colors.amber, size: 15),
-                    Icon(Icons.star, color: Colors.amber, size: 15),
-                    Icon(Icons.star, color: Colors.amber, size: 15),
-                    Icon(Icons.star, color: Colors.amber, size: 15),
-                    Icon(Icons.star, color: Colors.amber, size: 15),
-                    SizedBox(width: 6),
-                    Text(
-                      "5.0",
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                  "Odontologo General",
+                  style: TextStyle(color: textoSuave, fontSize: 14),
                 ),
               ],
             ),
@@ -304,73 +327,99 @@ class _UserHomeState extends State<UserHome> {
     );
   }
 
-  Widget _historial({
-    required String titulo,
-    required String fecha,
-    required String estado,
-    required Color colorEstado,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-      padding: const EdgeInsets.all(15),
-      decoration: _panelDecoration(),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: azulOscuro,
-              borderRadius: BorderRadius.circular(14),
+  Widget _historialReciente() {
+    if (loading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    if (citas.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: _panelDecoration(),
+          child: const Text(
+            "Todavia no tienes citas registradas",
+            style: TextStyle(color: textoSuave),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: citas.take(3).map(_historial).toList(),
+    );
+  }
+
+  Widget _historial(CitaModel cita) {
+    final colorEstado = cita.estaCancelada
+        ? rojoSalir
+        : cita.estaConfirmada
+            ? textoSuave
+            : const Color(0xffF1B64B);
+
+    return GestureDetector(
+      onTap: abrirMisCitas,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+        padding: const EdgeInsets.all(15),
+        decoration: _panelDecoration(),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: azulOscuro,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.medical_services, color: Colors.white),
             ),
-            child: const Center(
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cita.servicio,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    cita.fechaHoraTexto,
+                    style: const TextStyle(color: textoSuave, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: colorEstado.withOpacity(.18),
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Text(
-                "🦷",
-                style: TextStyle(fontSize: 18),
+                cita.estado,
+                style: TextStyle(
+                  color: colorEstado,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  titulo,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  fecha,
-                  style: const TextStyle(
-                    color: textoSuave,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: colorEstado.withOpacity(.18),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              estado,
-              style: TextStyle(
-                color: colorEstado == azulPrincipal
-                    ? const Color(0xff9FC7D3)
-                    : const Color(0xffF1B64B),
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -380,9 +429,7 @@ class _UserHomeState extends State<UserHome> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
       decoration: const BoxDecoration(
         color: Color(0xff061017),
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(25),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -416,26 +463,37 @@ class _UserHomeState extends State<UserHome> {
           return;
         }
 
-        setState(() {
-          selectedIndex = index;
-        });
+        if (index == 0) {
+          setState(() => selectedIndex = 0);
+          cargarCitas();
+          return;
+        }
+
+        if (index == 1) {
+          abrirNuevaCita();
+          return;
+        }
+
+        if (index == 2) {
+          abrirMisCitas();
+        }
       },
       child: SizedBox(
-        width: 70,
+        width: 78,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: active && !isExit ? azulMate : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 icon,
                 color: active && !isExit ? Colors.white : color,
-                size: 23,
+                size: 25,
               ),
             ),
             const SizedBox(height: 4),
@@ -443,7 +501,7 @@ class _UserHomeState extends State<UserHome> {
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -453,19 +511,12 @@ class _UserHomeState extends State<UserHome> {
     );
   }
 
-  Widget _circleButton(IconData icon, Color bg, Color iconColor) {
+  static Widget _circleButton(IconData icon, Color bg, Color iconColor) {
     return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: bg,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        color: iconColor,
-        size: 22,
-      ),
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      child: Icon(icon, color: iconColor, size: 24),
     );
   }
 
@@ -473,9 +524,7 @@ class _UserHomeState extends State<UserHome> {
     return BoxDecoration(
       color: panelClaro,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: Colors.white.withOpacity(.08),
-      ),
+      border: Border.all(color: Colors.white.withOpacity(.08)),
     );
   }
 }
@@ -499,11 +548,7 @@ class _InfoPill extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 16,
-          ),
+          Icon(icon, color: Colors.white, size: 16),
           const SizedBox(width: 6),
           Text(
             text,
