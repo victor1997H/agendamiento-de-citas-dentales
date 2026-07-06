@@ -10,7 +10,10 @@ from controllers.cita_controller import (
     cancel_cita_usuario,
     get_citas_hoy,
     get_resumen_doctor,
-    get_pacientes
+    get_pacientes,
+    get_disponibilidad,
+    replace_disponibilidad,
+    get_horas_disponibles,
 )
 
 from middlewares.jwt_auth import token_required
@@ -27,7 +30,8 @@ def crear_cita():
 
     try:
         data = request.get_json() or {}
-        nueva = add_cita(data, request.user["id"])
+        usuario_id = request.user["id"] if request.user["rol"] == "usuario" else data.get("usuario_id")
+        nueva = add_cita(data, usuario_id)
         return jsonify(nueva), 201
     except ValidationError as e:
         return jsonify({"success": False, "message": str(e)}), 400
@@ -41,6 +45,19 @@ def crear_cita():
 def listar_citas():
     citas = get_citas(request.user)
     return jsonify(citas), 200
+
+
+# ================= HORAS DISPONIBLES (USUARIO) =================
+@cita_bp.route("/disponibilidad/horas", methods=["GET"])
+@token_required
+def horas_disponibles():
+    try:
+        fecha = request.args.get("fecha")
+        doctor_id = request.args.get("doctor_id")
+        result = get_horas_disponibles(fecha, doctor_id)
+        return jsonify({"success": True, **result}), 200
+    except ValidationError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
 
 
 # ================= VER MIS CITAS (USUARIO) =================
@@ -113,6 +130,33 @@ def doctor_pacientes():
 
     pacientes = get_pacientes()
     return jsonify({"success": True, "pacientes": pacientes}), 200
+
+
+# ================= DISPONIBILIDAD (DOCTOR / ADMIN) =================
+@cita_bp.route("/doctor/disponibilidad", methods=["GET"])
+@token_required
+def doctor_disponibilidad():
+    if request.user["rol"] not in ("doctor", "admin"):
+        return jsonify({"success": False, "message": "No autorizado"}), 403
+
+    return jsonify({
+        "success": True,
+        "bloques": get_disponibilidad()
+    }), 200
+
+
+@cita_bp.route("/doctor/disponibilidad", methods=["PUT"])
+@token_required
+def doctor_guardar_disponibilidad():
+    if request.user["rol"] not in ("doctor", "admin"):
+        return jsonify({"success": False, "message": "No autorizado"}), 403
+
+    try:
+        data = request.get_json() or {}
+        bloques = replace_disponibilidad(data, request.user)
+        return jsonify({"success": True, "bloques": bloques}), 200
+    except ValidationError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
 
 
 # ================= ACTUALIZAR ESTADO (DOCTOR) =================

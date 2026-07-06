@@ -9,7 +9,9 @@ from controllers.user_controller import (
     register_user,
     forgot_password_user,
     reset_password_user,
+    update_profile_user,
 )
+from middlewares.jwt_auth import token_required
 
 user_bp = Blueprint("user_bp", __name__)
 
@@ -61,6 +63,8 @@ def create_token(user):
         "email": user["email"],
         "telefono": user["telefono"],
         "rol": user["rol"],
+        "especialidad": user.get("especialidad"),
+        "perfil_completo": user.get("perfil_completo", True),
         "exp": datetime.now(timezone.utc) + timedelta(hours=8),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -138,6 +142,59 @@ def login():
 
     except Exception as e:
         print("LOGIN ROUTE ERROR:", e)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ================= UPDATE PROFILE =================
+@user_bp.route("/me", methods=["PUT"])
+@token_required
+def update_profile():
+    try:
+        data = request.get_json() or {}
+
+        nombre = (data.get("nombre") or "").strip()
+        email = (data.get("email") or "").strip().lower()
+        telefono = re.sub(r"[\s()-]", "", (data.get("telefono") or "").strip())
+        especialidad = (data.get("especialidad") or "Odontólogo General").strip()
+        password = data.get("password") or ""
+
+        if not nombre:
+            return jsonify({"success": False, "message": "Nombre requerido"}), 400
+        if not EMAIL_RE.match(email):
+            return jsonify({"success": False, "message": "Correo inválido"}), 400
+        if not PHONE_RE.match(telefono):
+            return jsonify({"success": False, "message": "Teléfono inválido"}), 400
+
+        if password:
+            password_error = validate_password(password)
+            if password_error:
+                return jsonify({"success": False, "message": password_error}), 400
+
+        user = update_profile_user(request.user["id"], {
+            "nombre": nombre,
+            "email": email,
+            "telefono": telefono,
+            "especialidad": especialidad,
+            "password": password,
+        })
+
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "No se pudo actualizar el perfil"
+            }), 400
+
+        return jsonify({
+            "success": True,
+            "usuario": user,
+            "token": create_token(user)
+        }), 200
+
+    except Exception as e:
+        print("UPDATE PROFILE ROUTE ERROR:", e)
         return jsonify({
             "success": False,
             "error": str(e)

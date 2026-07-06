@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 from database import get_connection
 
-ALLOWED_STATES = {"pendiente", "confirmada", "completada", "cancelada"}
+ALLOWED_STATES = {"pendiente", "confirmada", "completada", "cancelada", "no_asistio"}
 
 
 class ValidationError(Exception):
@@ -73,7 +73,7 @@ def add_cita(data, usuario_id):
                 FROM citas
                 WHERE doctor_id = %s
                   AND fecha = %s
-                  AND estado <> 'cancelada'
+                  AND estado NOT IN ('cancelada', 'no_asistio')
                 LIMIT 1
             """, (doctor_id, fecha))
 
@@ -288,6 +288,131 @@ def get_pacientes():
     ]
 
 
+def get_disponibilidad():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT d.id, d.doctor_id, d.dia_semana, d.hora_inicio, d.hora_fin, d.activo
+        FROM disponibilidad_odontologos d
+        JOIN odontologos o ON o.id = d.doctor_id
+        WHERE o.activo = TRUE
+        ORDER BY d.dia_semana ASC, d.hora_inicio ASC
+    """)
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return [_format_disponibilidad(row) for row in rows]
+
+
+def replace_disponibilidad(data, user=None):
+    bloques = data.get("bloques") or []
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        doctor_id = _resolve_doctor_id(
+            cur,
+            data.get("doctor_id"),
+            user_id=user["id"] if user else None,
+        )
+        if not doctor_id:
+            raise ValidationError("Doctor no encontrado")
+
+        cur.execute(
+            "DELETE FROM disponibilidad_odontologos WHERE doctor_id = %s",
+            (doctor_id,),
+        )
+
+        for bloque in bloques:
+            dia = int(bloque.get("dia_semana"))
+            inicio = _parse_time(bloque.get("hora_inicio"))
+            fin = _parse_time(bloque.get("hora_fin"))
+            activo = bool(bloque.get("activo", True))
+
+            if dia < 1 or dia > 7:
+                raise ValidationError("Día inválido")
+            if fin <= inicio:
+                raise ValidationError("La hora fin debe ser mayor a la hora inicio")
+
+            cur.execute("""
+                INSERT INTO disponibilidad_odontologos(
+                    doctor_id, dia_semana, hora_inicio, hora_fin, activo
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (doctor_id, dia_semana, hora_inicio, hora_fin)
+                DO UPDATE SET activo = EXCLUDED.activo
+            """, (doctor_id, dia, inicio, fin, activo))
+
+        conn.commit()
+        return get_disponibilidad()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_horas_disponibles(fecha_text, doctor_id=None, intervalo=30):
+    fecha = _parse_date(fecha_text)
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        resolved_doctor_id = _resolve_doctor_id(cur, doctor_id)
+        if not resolved_doctor_id:
+            raise ValidationError("Doctor no encontrado")
+
+        dia_semana = fecha.weekday() + 1
+
+        cur.execute("""
+            SELECT hora_inicio, hora_fin
+            FROM disponibilidad_odontologos
+            WHERE doctor_id = %s AND dia_semana = %s AND activo = TRUE
+            ORDER BY hora_inicio ASC
+        """, (resolved_doctor_id, dia_semana))
+        bloques = cur.fetchall()
+
+        cur.execute("""
+            SELECT fecha
+            FROM citas
+            WHERE doctor_id = %s
+              AND fecha::date = %s
+              AND estado NOT IN ('cancelada', 'no_asistio')
+        """, (resolved_doctor_id, fecha.date()))
+        ocupadas = {
+            row[0].strftime("%H:%M") if hasattr(row[0], "strftime") else str(row[0])[:5]
+            for row in cur.fetchall()
+        }
+
+        now = datetime.now()
+        horas = []
+
+        for inicio, fin in bloques:
+            actual = datetime.combine(fecha.date(), inicio)
+            limite = datetime.combine(fecha.date(), fin)
+
+            while actual < limite:
+                hora = actual.strftime("%H:%M")
+                if hora not in ocupadas and actual > now:
+                    horas.append(hora)
+                actual += timedelta(minutes=intervalo)
+
+        return {
+            "doctor_id": resolved_doctor_id,
+            "fecha": fecha.date().isoformat(),
+            "horas": horas,
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+
 def delete_cita(id):
     conn = get_connection()
     cur = conn.cursor()
@@ -321,6 +446,17 @@ def _format_cita(row):
     }
 
 
+def _format_disponibilidad(row):
+    return {
+        "id": row[0],
+        "doctor_id": row[1],
+        "dia_semana": row[2],
+        "hora_inicio": row[3].strftime("%H:%M") if hasattr(row[3], "strftime") else str(row[3])[:5],
+        "hora_fin": row[4].strftime("%H:%M") if hasattr(row[4], "strftime") else str(row[4])[:5],
+        "activo": row[5],
+    }
+
+
 def _parse_fecha(value):
     if not value:
         raise ValidationError("Fecha requerida")
@@ -339,7 +475,42 @@ def _parse_fecha(value):
     raise ValidationError("Fecha inválida")
 
 
-def _resolve_doctor_id(cur, requested_id):
+def _parse_date(value):
+    if not value:
+        raise ValidationError("Fecha requerida")
+
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.replace(tzinfo=None)
+    except ValueError as exc:
+        try:
+            return datetime.strptime(str(value), "%Y-%m-%d")
+        except ValueError:
+            raise ValidationError("Fecha inválida") from exc
+
+
+def _parse_time(value):
+    if not value:
+        raise ValidationError("Hora requerida")
+
+    try:
+        parts = str(value).split(":")
+        return time(hour=int(parts[0]), minute=int(parts[1]))
+    except (ValueError, IndexError) as exc:
+        raise ValidationError("Hora inválida") from exc
+
+
+def _resolve_doctor_id(cur, requested_id, user_id=None):
+    if user_id:
+        cur.execute("""
+            SELECT id FROM odontologos
+            WHERE usuario_id = %s AND activo = TRUE
+            LIMIT 1
+        """, (user_id,))
+        row = cur.fetchone()
+        if row:
+            return row[0]
+
     if requested_id:
         cur.execute("""
             SELECT id FROM odontologos

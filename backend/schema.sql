@@ -121,6 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_citas_doctor_id ON citas(doctor_id);
 CREATE INDEX IF NOT EXISTS idx_citas_fecha ON citas(fecha);
 CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leida);
 
+DROP INDEX IF EXISTS ux_citas_doctor_fecha_activas;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_citas_doctor_fecha_activas
 ON citas(doctor_id, fecha)
-WHERE doctor_id IS NOT NULL AND estado <> 'cancelada';
+WHERE doctor_id IS NOT NULL AND estado NOT IN ('cancelada', 'no_asistio');
