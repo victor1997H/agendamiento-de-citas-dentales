@@ -23,4 +23,10 @@ class UsuarioRepository {
   ) async {
     return await ApiClient.resetPassword(email, newPassword);
   }
+
+  Future<Map<String, dynamic>?> actualizarPerfil(
+    Map<String, dynamic> data,
+  ) async {
+    return await ApiClient.actualizarPerfil(data);
+  }
 }

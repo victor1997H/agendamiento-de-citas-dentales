@@ -104,6 +104,15 @@ class CitaModel {
   bool get estaPendiente => estado.toLowerCase() == "pendiente";
   bool get estaConfirmada => estado.toLowerCase() == "confirmada";
   bool get estaCompletada => estado.toLowerCase() == "completada";
+  bool get estaNoAsistio => estado.toLowerCase() == "no_asistio";
+
+  String get estadoTexto {
+    if (estaNoAsistio) return "No asistió";
+    if (estaCancelada) return "Cancelada";
+    if (estaConfirmada) return "Aceptada";
+    if (estaCompletada) return "Completada";
+    return "Pendiente";
+  }
 
   static int? _toInt(dynamic value) {
     if (value == null) return null;

@@ -78,6 +78,22 @@ class ApiClient {
     return response.statusCode == 200;
   }
 
+  static Future<Map<String, dynamic>?> actualizarPerfil(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/me"),
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    return null;
+  }
+
   // ================= HEADERS CON JWT =================
   static Map<String, String> get _headers {
     return {
@@ -98,6 +114,20 @@ class ApiClient {
     }
 
     return [];
+  }
+
+  static Future<List<String>> getHorasDisponibles(String fecha) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/disponibilidad/horas?fecha=$fecha"),
+      headers: _headers,
+    );
+
+    if (response.statusCode != 200) return [];
+
+    final body = jsonDecode(response.body);
+    final List data = body["horas"] ?? [];
+
+    return data.map((item) => item.toString()).toList();
   }
 
   static Future<bool> crearCita(Map<String, dynamic> data) async {

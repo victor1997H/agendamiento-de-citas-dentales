@@ -20,6 +20,10 @@ class CitaRepository {
         .toList();
   }
 
+  Future<List<String>> getHorasDisponibles(String fecha) async {
+    return await ApiClient.getHorasDisponibles(fecha);
+  }
+
   Future<bool> crearCita(Object data) async {
     final payload = _payloadFrom(data);
 

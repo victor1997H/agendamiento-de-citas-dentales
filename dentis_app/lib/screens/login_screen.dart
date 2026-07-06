@@ -7,6 +7,7 @@ import 'home_doctor.dart';
 import 'home_user.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import 'profile_setup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -124,6 +125,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goHome(Map<String, dynamic> user, String rol) {
+    if ((rol == "admin" || rol == "doctor") &&
+        user["perfil_completo"] == false) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => ProfileSetupScreen(user: user)),
+      );
+      return;
+    }
+
     final page = rol == "admin"
         ? AdminHome(user: user)
         : rol == "doctor"

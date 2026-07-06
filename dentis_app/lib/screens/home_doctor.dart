@@ -415,7 +415,7 @@ class _DoctorHomeState extends State<DoctorHome> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _estadoChip(cita.estado, color),
+                  _estadoChip(cita.estadoTexto, color),
                 ],
               ),
             ],
@@ -429,6 +429,7 @@ class _DoctorHomeState extends State<DoctorHome> {
                 _action("Confirmar", () => cambiarEstado(cita, "confirmada")),
                 _action("Completar", () => cambiarEstado(cita, "completada")),
                 _action("Cancelar", () => cambiarEstado(cita, "cancelada")),
+                _action("No asistió", () => cambiarEstado(cita, "no_asistio")),
               ],
             ),
           ],
@@ -639,8 +640,9 @@ class _DoctorHomeState extends State<DoctorHome> {
 
   Color _estadoColor(CitaModel cita) {
     if (cita.estaCompletada) return verde;
-    if (cita.estaConfirmada) return textoSuave;
-    if (cita.estaCancelada) return rojoSalir;
+    if (cita.estaConfirmada) return verde;
+    if (cita.estaCancelada) return Colors.deepPurpleAccent;
+    if (cita.estaNoAsistio) return rojoSalir;
     return Colors.amber;
   }
 

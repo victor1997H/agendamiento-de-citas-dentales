@@ -5,9 +5,12 @@ import 'screens/home_admin.dart';
 import 'screens/home_doctor.dart';
 import 'screens/home_user.dart';
 import 'screens/login_screen.dart';
+import 'screens/profile_setup_screen.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
   await SessionDataSource.loadSession();
   runApp(const DentisApp());
 }
@@ -34,6 +37,11 @@ class DentisApp extends StatelessWidget {
     }
 
     final user = SessionDataSource.user;
+
+    if ((SessionDataSource.isAdmin || SessionDataSource.isDoctor) &&
+        user["perfil_completo"] == false) {
+      return ProfileSetupScreen(user: user);
+    }
 
     if (SessionDataSource.isAdmin) {
       return AdminHome(user: user);

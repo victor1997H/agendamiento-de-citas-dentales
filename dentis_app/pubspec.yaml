@@ -35,6 +35,10 @@ dependencies:
   # autenticación con huella, rostro, PIN o patrón del dispositivo
   local_auth: ^2.3.0
 
+  # recordatorios locales de citas
+  flutter_local_notifications: ^17.2.4
+  timezone: ^0.9.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

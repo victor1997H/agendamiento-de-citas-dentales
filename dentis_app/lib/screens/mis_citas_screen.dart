@@ -21,6 +21,9 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
   static const azulOscuro = Color(0xff1F4F63);
   static const textoSuave = Color(0xff9FC7D3);
   static const rojo = Color(0xffD95B6A);
+  static const naranja = Color(0xffF1B64B);
+  static const verde = Color(0xff2FA884);
+  static const cancelado = Color(0xff6FA8B8);
 
   @override
   void initState() {
@@ -61,9 +64,19 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
   }
 
   Color estadoColor(CitaModel cita) {
-    if (cita.estaCancelada) return rojo;
-    if (cita.estaConfirmada) return textoSuave;
-    return const Color(0xffF1B64B);
+    if (cita.estaNoAsistio) return rojo;
+    if (cita.estaCancelada) return cancelado;
+    if (cita.estaConfirmada || cita.estaCompletada) return verde;
+    return naranja;
+  }
+
+  IconData estadoIcon(CitaModel cita) {
+    if (cita.estaNoAsistio) return Icons.timer_off_outlined;
+    if (cita.estaCancelada) return Icons.cancel_outlined;
+    if (cita.estaConfirmada || cita.estaCompletada) {
+      return Icons.check_circle_outline;
+    }
+    return Icons.hourglass_empty;
   }
 
   @override
@@ -95,9 +108,10 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                   onRefresh: cargar,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(18),
-                    itemCount: citas.length,
+                    itemCount: citas.length + 1,
                     itemBuilder: (context, index) {
-                      final cita = citas[index];
+                      if (index == 0) return _legend();
+                      final cita = citas[index - 1];
                       final color = estadoColor(cita);
 
                       return Container(
@@ -150,9 +164,16 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                                     color: color.withValues(alpha: .18),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(
-                                    cita.estado,
-                                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(estadoIcon(cita), color: color, size: 15),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        cita.estadoTexto,
+                                        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -169,7 +190,9 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                                 style: const TextStyle(color: textoSuave),
                               ),
                             ],
-                            if (!cita.estaCancelada) ...[
+                            if (!cita.estaCancelada &&
+                                !cita.estaNoAsistio &&
+                                !cita.estaCompletada) ...[
                               const SizedBox(height: 10),
                               Align(
                                 alignment: Alignment.centerRight,
@@ -187,6 +210,54 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                     },
                   ),
                 ),
+    );
+  }
+
+  Widget _legend() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: panel,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Wrap(
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          _LegendItem(color: naranja, icon: Icons.hourglass_empty, text: "Pendiente"),
+          _LegendItem(color: verde, icon: Icons.check_circle_outline, text: "Aceptada"),
+          _LegendItem(color: cancelado, icon: Icons.cancel_outlined, text: "Cancelada"),
+          _LegendItem(color: rojo, icon: Icons.timer_off_outlined, text: "No asistió"),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String text;
+
+  const _LegendItem({
+    required this.color,
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 }

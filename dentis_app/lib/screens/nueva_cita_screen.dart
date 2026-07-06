@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models/cita_model.dart';
 import '../data/repositories/cita_repository.dart';
+import '../services/notification_service.dart';
 
 class NuevaCitaScreen extends StatefulWidget {
   const NuevaCitaScreen({super.key});
@@ -17,8 +18,10 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   String servicio = "Limpieza Dental";
   final String doctor = "Dr. Roberto Mendez";
   DateTime fecha = DateTime.now().add(const Duration(days: 1));
-  TimeOfDay hora = const TimeOfDay(hour: 10, minute: 0);
+  String? horaSeleccionada;
   bool loading = false;
+  bool cargandoHoras = true;
+  List<String> horasDisponibles = [];
 
   final servicios = [
     "Limpieza Dental",
@@ -35,6 +38,12 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   static const textoSuave = Color(0xff9FC7D3);
 
   @override
+  void initState() {
+    super.initState();
+    cargarHoras();
+  }
+
+  @override
   void dispose() {
     notasController.dispose();
     super.dispose();
@@ -44,7 +53,6 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
 
   String get fechaTexto =>
       "${fecha.year}-${_dos(fecha.month)}-${_dos(fecha.day)}";
-  String get horaTexto => "${_dos(hora.hour)}:${_dos(hora.minute)}";
 
   void _msg(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -59,29 +67,43 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
     );
 
     if (selected != null) {
-      setState(() => fecha = selected);
+      setState(() {
+        fecha = selected;
+        horaSeleccionada = null;
+      });
+      await cargarHoras();
     }
   }
 
-  Future<void> elegirHora() async {
-    final selected = await showTimePicker(
-      context: context,
-      initialTime: hora,
-    );
+  Future<void> cargarHoras() async {
+    setState(() => cargandoHoras = true);
 
-    if (selected != null) {
-      setState(() => hora = selected);
-    }
+    final data = await repository.getHorasDisponibles(fechaTexto);
+
+    if (!mounted) return;
+
+    setState(() {
+      horasDisponibles = data;
+      cargandoHoras = false;
+      if (horaSeleccionada != null && !data.contains(horaSeleccionada)) {
+        horaSeleccionada = null;
+      }
+    });
   }
 
   Future<void> guardar() async {
+    if (horaSeleccionada == null) {
+      _msg("Selecciona una hora disponible");
+      return;
+    }
+
     setState(() => loading = true);
 
     final cita = CitaModel(
       servicio: servicio,
       doctor: doctor,
       fecha: fechaTexto,
-      hora: horaTexto,
+      hora: horaSeleccionada!,
       notas: notasController.text.trim(),
     );
 
@@ -92,6 +114,8 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
     setState(() => loading = false);
 
     if (ok) {
+      await NotificationService.scheduleAppointmentReminder(cita);
+      if (!mounted) return;
       _msg("Cita creada correctamente");
       Navigator.pop(context, true);
     } else {
@@ -114,7 +138,15 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Servicio", style: TextStyle(color: textoSuave)),
+            _sectionTitle("1. Elige una fecha"),
+            const SizedBox(height: 8),
+            _buttonInfo("Fecha", fechaTexto, Icons.calendar_today, elegirFecha),
+            const SizedBox(height: 18),
+            _sectionTitle("2. Selecciona una hora disponible"),
+            const SizedBox(height: 8),
+            _horasPanel(),
+            const SizedBox(height: 18),
+            _sectionTitle("3. Servicio"),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -145,21 +177,7 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
             const SizedBox(height: 18),
             _info("Doctor", doctor, Icons.medical_services),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _buttonInfo(
-                      "Fecha", fechaTexto, Icons.calendar_today, elegirFecha),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buttonInfo(
-                      "Hora", horaTexto, Icons.access_time, elegirHora),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            const Text("Notas", style: TextStyle(color: textoSuave)),
+            _sectionTitle("4. Detalle adicional"),
             const SizedBox(height: 8),
             TextField(
               controller: notasController,
@@ -201,6 +219,59 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: textoSuave,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _horasPanel() {
+    if (cargandoHoras) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    if (horasDisponibles.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration:
+            BoxDecoration(color: panel, borderRadius: BorderRadius.circular(15)),
+        child: const Text(
+          "No hay horas disponibles para este día",
+          style: TextStyle(color: textoSuave),
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: horasDisponibles.map((hora) {
+        final selected = horaSeleccionada == hora;
+        return ChoiceChip(
+          label: Text(hora),
+          selected: selected,
+          selectedColor: azul,
+          backgroundColor: panel,
+          labelStyle: TextStyle(
+            color: selected ? Colors.white : textoSuave,
+            fontWeight: FontWeight.bold,
+          ),
+          onSelected: (_) => setState(() => horaSeleccionada = hora),
+        );
+      }).toList(),
     );
   }
 
