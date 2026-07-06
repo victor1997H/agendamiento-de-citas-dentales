@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+flask_stdout.log
+flask_stderr.log
+.agents/
+.codex/
+.codex_compare/
+~$*.docx
+
+dentis_app/.dart_tool/
+dentis_app/build/
+dentis_app/.flutter-plugins
+dentis_app/.flutter-plugins-dependencies
+
+*.log

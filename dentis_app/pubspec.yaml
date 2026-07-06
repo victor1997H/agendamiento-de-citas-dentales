@@ -1,0 +1,56 @@
+name: dentis_app
+description: Sistema odontológico con almacenamiento local SQLite y sincronización PostgreSQL
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # HTTP requests
+  http: ^1.2.1
+
+  # API REST avanzada
+  dio: ^5.8.0+1
+
+  # Base de datos local SQLite
+  sqflite: ^2.4.2
+
+  # rutas / paths
+  path: ^1.9.1
+
+  # conectividad internet
+  connectivity_plus: ^6.1.4
+
+  # persistencia simple de sesión y preferencias
+  shared_preferences: ^2.3.2
+
+  # autenticación con huella, rostro, PIN o patrón del dispositivo
+  local_auth: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/logo.png
+    - assets/images/diente.jpg
+    - assets/images/diente1.jpg
+    - assets/images/diente2.jpg
+    - assets/images/fondo.jpg
+    - assets/images/fondo1.jpg
+    - assets/images/fondo2.jpg
+    - assets/images/fondo3.jpg
+    

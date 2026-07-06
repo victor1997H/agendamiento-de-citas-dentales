@@ -1,0 +1,140 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../core/constants/api_constants.dart';
+import 'session_datasource.dart';
+
+class ApiClient {
+  static const String baseUrl = ApiConstants.baseUrl;
+
+  // ================= LOGIN =================
+  static Future<Map<String, dynamic>?> login(
+    String email,
+    String password,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/login"),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "email": email,
+        "password": password,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    return null;
+  }
+
+  // ================= REGISTER =================
+  static Future<bool> registrarUsuario(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/usuarios"),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(data),
+    );
+
+    return response.statusCode == 201;
+  }
+
+  // ================= FORGOT PASSWORD =================
+  static Future<bool> forgotPassword(String email) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/forgot-password"),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "email": email,
+      }),
+    );
+
+    return response.statusCode == 200;
+  }
+
+  // ================= RESET PASSWORD =================
+  static Future<bool> resetPassword(
+    String email,
+    String newPassword,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/reset-password"),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "email": email,
+        "new_password": newPassword,
+      }),
+    );
+
+    return response.statusCode == 200;
+  }
+
+  // ================= HEADERS CON JWT =================
+  static Map<String, String> get _headers {
+    return {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer ${SessionDataSource.token}",
+    };
+  }
+
+  // ================= CITAS =================
+  static Future<List<dynamic>> getCitas() async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/citas"),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    return [];
+  }
+
+  static Future<bool> crearCita(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/citas"),
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+
+    return response.statusCode == 201;
+  }
+
+  static Future<bool> actualizarCita(Map<String, dynamic> data) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/citas/${data["id"]}"),
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> eliminarCita(int id) async {
+    final response = await http.delete(
+      Uri.parse("$baseUrl/citas/$id"),
+      headers: _headers,
+    );
+
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> cancelarCita(int id) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/citas/$id/cancelar"),
+      headers: _headers,
+    );
+
+    return response.statusCode == 200;
+  }
+}
