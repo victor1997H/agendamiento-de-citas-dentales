@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../data/datasources/session_datasource.dart';
 import '../data/models/cita_model.dart';
 import '../data/repositories/cita_repository.dart';
+import '../widgets/notification_sheet.dart';
 import 'login_screen.dart';
 import 'mis_citas_screen.dart';
 import 'nueva_cita_screen.dart';
+import 'user_agenda_screen.dart';
 
 class UserHome extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -60,6 +62,15 @@ class _UserHomeState extends State<UserHome> {
     }
   }
 
+  Future<void> abrirAgenda() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const UserAgendaScreen()),
+    );
+
+    cargarCitas();
+  }
+
   Future<void> abrirMisCitas() async {
     await Navigator.push(
       context,
@@ -67,6 +78,55 @@ class _UserHomeState extends State<UserHome> {
     );
 
     cargarCitas();
+  }
+
+  Future<void> abrirNotificaciones() async {
+    await cargarCitas();
+
+    final notifications = citas.take(8).map((cita) {
+      final estado = cita.estado.toLowerCase();
+
+      if (estado == "confirmada") {
+        return DentisNotification(
+          title: "Cita confirmada",
+          subtitle: "${cita.servicio} - ${cita.fecha} ${cita.horaCorta}",
+          icon: Icons.check_circle_outline,
+          color: textoSuave,
+        );
+      }
+
+      if (estado == "completada") {
+        return DentisNotification(
+          title: "Cita completada",
+          subtitle: "${cita.servicio} - ${cita.fecha} ${cita.horaCorta}",
+          icon: Icons.done_all,
+          color: Colors.green,
+        );
+      }
+
+      if (estado == "cancelada") {
+        return DentisNotification(
+          title: "Cita cancelada",
+          subtitle: "${cita.servicio} - ${cita.fecha} ${cita.horaCorta}",
+          icon: Icons.cancel_outlined,
+          color: rojoSalir,
+        );
+      }
+
+      return DentisNotification(
+        title: "Cita pendiente",
+        subtitle: "${cita.servicio} - ${cita.fecha} ${cita.horaCorta}",
+        icon: Icons.schedule,
+        color: Colors.amber,
+      );
+    }).toList();
+
+    if (!mounted) return;
+
+    showDentisNotifications(
+      context,
+      notifications: notifications,
+    );
   }
 
   void salir() {
@@ -83,6 +143,12 @@ class _UserHomeState extends State<UserHome> {
     final activas = citas.where((cita) => !cita.estaCancelada).toList();
 
     if (activas.isEmpty) return null;
+
+    activas.sort((a, b) {
+      final fechaA = "${a.fecha} ${a.horaCorta}";
+      final fechaB = "${b.fecha} ${b.horaCorta}";
+      return fechaA.compareTo(fechaB);
+    });
 
     return activas.first;
   }
@@ -169,7 +235,12 @@ class _UserHomeState extends State<UserHome> {
               ],
             ),
           ),
-          _circleButton(Icons.notifications_none, azulOscuro, textoSuave),
+          _circleButton(
+            Icons.notifications_none,
+            azulOscuro,
+            textoSuave,
+            abrirNotificaciones,
+          ),
           const SizedBox(width: 10),
           _circleButton(Icons.person, azulMate, Colors.white),
         ],
@@ -263,7 +334,7 @@ class _UserHomeState extends State<UserHome> {
                     ),
                   ),
                   Text(
-                    "Ver disponibilidad",
+                    "Crear una cita",
                     style: TextStyle(color: textoSuave, fontSize: 14),
                   ),
                 ],
@@ -360,7 +431,7 @@ class _UserHomeState extends State<UserHome> {
   Widget _historial(CitaModel cita) {
     final colorEstado = cita.estaCancelada
         ? rojoSalir
-        : cita.estaConfirmada
+        : cita.estaConfirmada || cita.estaCompletada
             ? textoSuave
             : const Color(0xffF1B64B);
 
@@ -404,6 +475,7 @@ class _UserHomeState extends State<UserHome> {
               ),
             ),
             Container(
+              constraints: const BoxConstraints(maxWidth: 105),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: colorEstado.withOpacity(.18),
@@ -411,6 +483,8 @@ class _UserHomeState extends State<UserHome> {
               ),
               child: Text(
                 cita.estado,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: colorEstado,
                   fontSize: 12,
@@ -435,7 +509,7 @@ class _UserHomeState extends State<UserHome> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _navItem(Icons.grid_view_rounded, "Inicio", 0),
-          _navItem(Icons.calendar_today_outlined, "Agendar", 1),
+          _navItem(Icons.calendar_today_outlined, "Agenda", 1),
           _navItem(Icons.assignment_outlined, "Mis Citas", 2),
           _navItem(Icons.logout, "Salir", 3, isExit: true),
         ],
@@ -470,7 +544,7 @@ class _UserHomeState extends State<UserHome> {
         }
 
         if (index == 1) {
-          abrirNuevaCita();
+          abrirAgenda();
           return;
         }
 
@@ -499,6 +573,8 @@ class _UserHomeState extends State<UserHome> {
             const SizedBox(height: 4),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: color,
                 fontSize: 12,
@@ -511,12 +587,20 @@ class _UserHomeState extends State<UserHome> {
     );
   }
 
-  static Widget _circleButton(IconData icon, Color bg, Color iconColor) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-      child: Icon(icon, color: iconColor, size: 24),
+  static Widget _circleButton(
+    IconData icon,
+    Color bg,
+    Color iconColor, [
+    VoidCallback? onTap,
+  ]) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+        child: Icon(icon, color: iconColor, size: 24),
+      ),
     );
   }
 
@@ -552,6 +636,8 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 12,

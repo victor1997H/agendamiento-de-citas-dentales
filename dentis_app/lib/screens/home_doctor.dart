@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../data/datasources/session_datasource.dart';
 import '../data/models/cita_model.dart';
 import '../data/repositories/doctor_repository.dart';
+import '../widgets/notification_sheet.dart';
+import 'doctor_agenda_screen.dart';
 import 'login_screen.dart';
 
 class DoctorHome extends StatefulWidget {
@@ -78,6 +80,50 @@ class _DoctorHomeState extends State<DoctorHome> {
     }
   }
 
+  Future<void> abrirNotificaciones() async {
+    await cargar();
+
+    final List<DentisNotification> notifications = [
+      DentisNotification(
+        title: "Agenda de hoy",
+        subtitle: "Tienes ${resumen["citas_hoy"] ?? 0} citas programadas",
+        icon: Icons.calendar_today,
+        color: verde,
+      ),
+      DentisNotification(
+        title: "Citas pendientes",
+        subtitle: "Hay ${resumen["pendientes"] ?? 0} citas esperando atención",
+        icon: Icons.hourglass_empty,
+        color: Colors.amber,
+      ),
+    ];
+
+    for (final cita in citasHoy.where((cita) => cita.estaPendiente)) {
+      notifications.add(
+        DentisNotification(
+          title: "Paciente pendiente",
+          subtitle: "${cita.paciente} - ${cita.servicio} ${cita.horaCorta}",
+          icon: Icons.person,
+          color: Colors.amber,
+        ),
+      );
+    }
+
+    if (!mounted) return;
+
+    showDentisNotifications(
+      context,
+      notifications: notifications,
+    );
+  }
+
+  void abrirAgenda() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DoctorAgendaScreen()),
+    ).then((_) => cargar());
+  }
+
   void salir() {
     SessionDataSource.clear();
 
@@ -105,9 +151,7 @@ class _DoctorHomeState extends State<DoctorHome> {
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                   child: selectedIndex == 2
                       ? _pacientesView()
-                      : selectedIndex == 1
-                          ? _agendaView()
-                          : _panelView(nombre),
+                      : _panelView(nombre),
                 ),
               ),
             ),
@@ -145,39 +189,29 @@ class _DoctorHomeState extends State<DoctorHome> {
           ],
         ),
         const SizedBox(height: 24),
-        const Text(
-          "Agenda de hoy",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                "Agenda de hoy",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: abrirAgenda,
+              child: const Text(
+                "Ver agenda",
+                style: TextStyle(color: verde),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         _agendaList(showActions: false),
-      ],
-    );
-  }
-
-  Widget _agendaView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Agenda",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          "Gestiona las citas de hoy",
-          style: TextStyle(color: textoSuave, fontSize: 15),
-        ),
-        const SizedBox(height: 18),
-        _agendaList(showActions: true),
       ],
     );
   }
@@ -239,7 +273,8 @@ class _DoctorHomeState extends State<DoctorHome> {
             ],
           ),
         ),
-        _circle(Icons.notifications_none, const Color(0xff1F4F63)),
+        _circle(Icons.notifications_none, const Color(0xff1F4F63),
+            abrirNotificaciones),
         const SizedBox(width: 10),
         _circle(Icons.medical_services, verde),
       ],
@@ -523,6 +558,11 @@ class _DoctorHomeState extends State<DoctorHome> {
           return;
         }
 
+        if (index == 1) {
+          abrirAgenda();
+          return;
+        }
+
         setState(() {
           selectedIndex = index;
         });
@@ -602,15 +642,22 @@ class _DoctorHomeState extends State<DoctorHome> {
     );
   }
 
-  Widget _circle(IconData icon, Color color) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
+  Widget _circle(
+    IconData icon,
+    Color color, [
+    VoidCallback? onTap,
+  ]) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white),
       ),
-      child: Icon(icon, color: Colors.white),
     );
   }
 

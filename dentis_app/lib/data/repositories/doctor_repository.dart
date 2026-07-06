@@ -49,6 +49,22 @@ class DoctorRepository {
         .toList();
   }
 
+  Future<List<CitaModel>> getCitas() async {
+    final response = await http.get(
+      Uri.parse("${ApiClient.baseUrl}/doctor/citas"),
+      headers: _headers,
+    );
+
+    if (response.statusCode != 200) return [];
+
+    final body = jsonDecode(response.body);
+    final List data = body["citas"] ?? [];
+
+    return data
+        .map((item) => CitaModel.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
   Future<bool> actualizarEstado(int id, String estado) async {
     final response = await http.put(
       Uri.parse("${ApiClient.baseUrl}/doctor/citas/$id/estado"),
