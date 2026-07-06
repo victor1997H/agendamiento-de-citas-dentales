@@ -138,42 +138,19 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle("1. Elige una fecha"),
-            const SizedBox(height: 8),
-            _buttonInfo("Fecha", fechaTexto, Icons.calendar_today, elegirFecha),
+            _availabilityHero(),
             const SizedBox(height: 18),
-            _sectionTitle("2. Selecciona una hora disponible"),
+            _sectionTitle("1. Día disponible"),
+            const SizedBox(height: 8),
+            _diasPanel(),
+            const SizedBox(height: 18),
+            _sectionTitle("2. Hora disponible"),
             const SizedBox(height: 8),
             _horasPanel(),
             const SizedBox(height: 18),
-            _sectionTitle("3. Servicio"),
+            _sectionTitle("3. ¿Qué necesitas atenderte?"),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: panel,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: servicio,
-                  isExpanded: true,
-                  dropdownColor: panel,
-                  style: const TextStyle(color: Colors.white),
-                  items: servicios.map((item) {
-                    return DropdownMenuItem(
-                      value: item,
-                      child: Text(item),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => servicio = value);
-                    }
-                  },
-                ),
-              ),
-            ),
+            _serviciosPanel(),
             const SizedBox(height: 18),
             _info("Doctor", doctor, Icons.medical_services),
             const SizedBox(height: 18),
@@ -228,6 +205,161 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
       style: const TextStyle(
         color: textoSuave,
         fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _availabilityHero() {
+    final selectedText = horaSeleccionada == null
+        ? "Elige un horario para continuar"
+        : "$fechaTexto a las $horaSeleccionada";
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: azul,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .16),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(Icons.event_available, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Disponibilidad del odontólogo",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  selectedText,
+                  style: const TextStyle(color: Color(0xffD8EEF3)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _diasPanel() {
+    final dias = List.generate(7, (index) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day + index);
+    });
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: panel,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: .08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: dias.map((dia) {
+                final selected = _sameDay(dia, fecha);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: InkWell(
+                    onTap: () async {
+                      setState(() {
+                        fecha = dia;
+                        horaSeleccionada = null;
+                      });
+                      await cargarHoras();
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 76,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: selected ? azul : fondo.withValues(alpha: .55),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selected
+                              ? azul
+                              : textoSuave.withValues(alpha: .24),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            _diaCorto(dia.weekday),
+                            style: TextStyle(
+                              color: selected ? Colors.white : textoSuave,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _dos(dia.day),
+                            style: TextStyle(
+                              color: selected ? Colors.white : Colors.white70,
+                              fontSize: 21,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: elegirFecha,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                color: fondo.withValues(alpha: .45),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_month, color: textoSuave, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Buscar otra fecha: $fechaTexto",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: textoSuave),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -297,6 +429,49 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
     );
   }
 
+  Widget _serviciosPanel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: panel,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: .08)),
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: servicios.map((item) {
+          final selected = servicio == item;
+          return ChoiceChip(
+            showCheckmark: false,
+            avatar: Icon(
+              Icons.medical_services_outlined,
+              size: 16,
+              color: selected ? Colors.white : textoSuave,
+            ),
+            label: Text(item),
+            selected: selected,
+            selectedColor: azul,
+            backgroundColor: fondo.withValues(alpha: .55),
+            side: BorderSide(
+              color: selected ? azul : textoSuave.withValues(alpha: .28),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : textoSuave,
+              fontWeight: FontWeight.bold,
+            ),
+            onSelected: (_) => setState(() => servicio = item),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _info(String title, String value, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -314,26 +489,12 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
     );
   }
 
-  Widget _buttonInfo(
-      String title, String value, IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-            color: panel, borderRadius: BorderRadius.circular(15)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: textoSuave),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(color: textoSuave)),
-            Text(value,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _diaCorto(int weekday) {
+    const dias = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    return dias[(weekday - 1).clamp(0, 6)];
   }
 }

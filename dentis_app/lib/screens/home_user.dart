@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../data/datasources/session_datasource.dart';
 import '../data/repositories/cita_repository.dart';
-import '../services/device_auth_service.dart';
 import '../services/sync_service.dart';
 import 'login_screen.dart';
 import 'mis_citas_screen.dart';
 import 'nueva_cita_screen.dart';
+import 'settings_screen.dart';
 
 class UserHome extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -23,7 +23,6 @@ class _UserHomeState extends State<UserHome> {
   int selectedIndex = 0;
   bool loadingCitas = false;
   bool savingCita = false;
-  bool deviceAuthEnabled = false;
   String selectedService = "Limpieza Dental";
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
@@ -51,19 +50,12 @@ class _UserHomeState extends State<UserHome> {
     super.initState();
     SyncService.sincronizar();
     _loadCitas();
-    _loadProfilePreferences();
   }
 
   @override
   void dispose() {
     _notesController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadProfilePreferences() async {
-    final enabled = await SessionDataSource.isDeviceAuthEnabled();
-    if (!mounted) return;
-    setState(() => deviceAuthEnabled = enabled);
   }
 
   Future<void> _loadCitas() async {
@@ -449,7 +441,7 @@ class _UserHomeState extends State<UserHome> {
             Icons.person,
             azulMate,
             Colors.white,
-            onTap: _showProfile,
+            onTap: _openSettings,
           ),
         ],
       ),
@@ -1102,83 +1094,10 @@ class _UserHomeState extends State<UserHome> {
     );
   }
 
-  void _showProfile() {
-    var modalDeviceAuth = deviceAuthEnabled;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return _sheetContainer(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Perfil",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _profileRow(Icons.person_outline,
-                      widget.user["nombre"] ?? "Paciente"),
-                  _profileRow(Icons.email_outlined,
-                      widget.user["email"] ?? "Sin correo"),
-                  _profileRow(Icons.phone_outlined,
-                      widget.user["telefono"] ?? "Sin teléfono"),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: azulPrincipal,
-                    title: const Text(
-                      "Entrada con huella, rostro, PIN o patrón",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      "Se usará la seguridad configurada en este dispositivo",
-                      style: TextStyle(color: textoSuave, fontSize: 12),
-                    ),
-                    value: modalDeviceAuth,
-                    onChanged: (value) async {
-                      if (value) {
-                        final authenticated =
-                            await DeviceAuthService.authenticate();
-                        if (!authenticated) {
-                          if (mounted) {
-                            _showMsg("No se pudo activar la verificación");
-                          }
-                          return;
-                        }
-                      }
-
-                      await SessionDataSource.setDeviceAuthEnabled(value);
-
-                      setModalState(() {
-                        modalDeviceAuth = value;
-                      });
-
-                      if (mounted) {
-                        setState(() {
-                          deviceAuthEnabled = value;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SettingsScreen(user: widget.user)),
     );
   }
 
@@ -1227,24 +1146,6 @@ class _UserHomeState extends State<UserHome> {
                   style: const TextStyle(color: textoSuave, fontSize: 12),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _profileRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        children: [
-          Icon(icon, color: textoSuave, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
         ],
