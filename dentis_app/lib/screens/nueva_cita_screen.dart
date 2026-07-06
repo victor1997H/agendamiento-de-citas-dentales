@@ -17,11 +17,13 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
 
   String servicio = "Limpieza Dental";
   final String doctor = "Dr. Roberto Mendez";
-  DateTime fecha = DateTime.now().add(const Duration(days: 1));
+  DateTime fecha = DateTime.now();
   String? horaSeleccionada;
   bool loading = false;
   bool cargandoHoras = true;
+  bool cargandoDisponibilidad = true;
   List<String> horasDisponibles = [];
+  Map<String, List<String>> horasPorFecha = {};
 
   final servicios = [
     "Limpieza Dental",
@@ -40,7 +42,7 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   @override
   void initState() {
     super.initState();
-    cargarHoras();
+    cargarDisponibilidadInicial();
   }
 
   @override
@@ -75,6 +77,48 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
     }
   }
 
+  Future<void> cargarDisponibilidadInicial() async {
+    setState(() {
+      cargandoDisponibilidad = true;
+      cargandoHoras = true;
+    });
+
+    final now = DateTime.now();
+    final dias = List.generate(
+      7,
+      (index) => DateTime(now.year, now.month, now.day + index),
+    );
+
+    final results = await Future.wait(
+      dias.map((dia) async {
+        final key = _dateKey(dia);
+        final horas = await repository.getHorasDisponibles(key);
+        return MapEntry(key, horas);
+      }),
+    );
+
+    if (!mounted) return;
+
+    final mapa = Map<String, List<String>>.fromEntries(results);
+    DateTime? firstAvailable;
+    for (final dia in dias) {
+      if ((mapa[_dateKey(dia)] ?? []).isNotEmpty) {
+        firstAvailable = dia;
+        break;
+      }
+    }
+
+    setState(() {
+      horasPorFecha = mapa;
+      if (firstAvailable != null) {
+        fecha = firstAvailable;
+      }
+      horasDisponibles = mapa[fechaTexto] ?? [];
+      cargandoDisponibilidad = false;
+      cargandoHoras = false;
+    });
+  }
+
   Future<void> cargarHoras() async {
     setState(() => cargandoHoras = true);
 
@@ -84,6 +128,10 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
 
     setState(() {
       horasDisponibles = data;
+      horasPorFecha = {
+        ...horasPorFecha,
+        fechaTexto: data,
+      };
       cargandoHoras = false;
       if (horaSeleccionada != null && !data.contains(horaSeleccionada)) {
         horaSeleccionada = null;
@@ -275,32 +323,55 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            "Toca un día con horarios disponibles",
+            style: TextStyle(
+              color: textoSuave,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: dias.map((dia) {
                 final selected = _sameDay(dia, fecha);
+                final key = _dateKey(dia);
+                final count = horasPorFecha[key]?.length ?? 0;
+                final available = count > 0;
                 return Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: InkWell(
-                    onTap: () async {
-                      setState(() {
-                        fecha = dia;
-                        horaSeleccionada = null;
-                      });
-                      await cargarHoras();
-                    },
+                    onTap: !available && !cargandoDisponibilidad
+                        ? null
+                        : () async {
+                            setState(() {
+                              fecha = dia;
+                              horaSeleccionada = null;
+                              horasDisponibles = horasPorFecha[key] ?? [];
+                            });
+                            if (!horasPorFecha.containsKey(key)) {
+                              await cargarHoras();
+                            }
+                          },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
-                      width: 76,
+                      width: 88,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: selected ? azul : fondo.withValues(alpha: .55),
+                        color: selected
+                            ? azul
+                            : available
+                                ? fondo.withValues(alpha: .55)
+                                : Colors.white.withValues(alpha: .07),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: selected
                               ? azul
-                              : textoSuave.withValues(alpha: .24),
+                              : available
+                                  ? textoSuave.withValues(alpha: .24)
+                                  : Colors.white.withValues(alpha: .10),
                         ),
                       ),
                       child: Column(
@@ -308,7 +379,11 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
                           Text(
                             _diaCorto(dia.weekday),
                             style: TextStyle(
-                              color: selected ? Colors.white : textoSuave,
+                              color: selected
+                                  ? Colors.white
+                                  : available
+                                      ? textoSuave
+                                      : Colors.white30,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -317,9 +392,32 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
                           Text(
                             _dos(dia.day),
                             style: TextStyle(
-                              color: selected ? Colors.white : Colors.white70,
+                              color: selected
+                                  ? Colors.white
+                                  : available
+                                      ? Colors.white70
+                                      : Colors.white30,
                               fontSize: 21,
                               fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            cargandoDisponibilidad
+                                ? "..."
+                                : available
+                                    ? "$count horas"
+                                    : "Sin horario",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : available
+                                      ? textoSuave
+                                      : Colors.white30,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -491,6 +589,10 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
 
   bool _sameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _dateKey(DateTime date) {
+    return "${date.year}-${_dos(date.month)}-${_dos(date.day)}";
   }
 
   String _diaCorto(int weekday) {
