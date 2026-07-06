@@ -83,7 +83,7 @@ class DoctorRepository {
     final response = await http.put(
       Uri.parse("${ApiClient.baseUrl}/doctor/disponibilidad"),
       headers: _headers,
-      body: jsonEncode({"doctor_id": 1, "bloques": bloques}),
+      body: jsonEncode({"bloques": bloques}),
     );
 
     return response.statusCode == 200;

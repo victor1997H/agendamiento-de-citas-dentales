@@ -4,6 +4,7 @@ import '../data/datasources/session_datasource.dart';
 import '../data/models/cita_model.dart';
 import '../data/repositories/doctor_repository.dart';
 import 'login_screen.dart';
+import 'settings_screen.dart';
 
 class DoctorHome extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -87,6 +88,13 @@ class _DoctorHomeState extends State<DoctorHome> {
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
+    );
+  }
+
+  void abrirAjustes() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SettingsScreen(user: widget.user)),
     );
   }
 
@@ -243,7 +251,7 @@ class _DoctorHomeState extends State<DoctorHome> {
         ),
         _circle(Icons.notifications_none, const Color(0xff1F4F63)),
         const SizedBox(width: 10),
-        _circle(Icons.medical_services, verde),
+        _circle(Icons.medical_services, verde, onTap: abrirAjustes),
       ],
     );
   }
@@ -605,15 +613,19 @@ class _DoctorHomeState extends State<DoctorHome> {
     );
   }
 
-  Widget _circle(IconData icon, Color color) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
+  Widget _circle(IconData icon, Color color, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(26),
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white),
       ),
-      child: Icon(icon, color: Colors.white),
     );
   }
 

@@ -6,6 +6,7 @@ import '../data/repositories/cita_repository.dart';
 import '../data/repositories/doctor_repository.dart';
 import 'login_screen.dart';
 import 'profile_setup_screen.dart';
+import 'settings_screen.dart';
 
 class AdminHome extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -153,7 +154,6 @@ class _AdminHomeState extends State<AdminHome> {
     final ok = await citaRepository.crearCita({
       "paciente": paciente,
       "servicio": selectedService,
-      "doctor_id": 1,
       "fecha": fecha.toIso8601String(),
       "notas": notasController.text.trim(),
     });
@@ -193,6 +193,13 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+  void abrirAjustes() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SettingsScreen(user: widget.user)),
+    );
+  }
+
   void _msg(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
@@ -222,12 +229,6 @@ class _AdminHomeState extends State<AdminHome> {
             _bottomBar(),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => setState(() => selectedIndex = 1),
-        backgroundColor: azul,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -400,16 +401,27 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               const SizedBox(height: 14),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 10,
+                runSpacing: 10,
                 children: List.generate(7, (index) {
                   final dia = index + 1;
                   final selected = selectedDiaSemana == dia;
                   return ChoiceChip(
+                    showCheckmark: false,
                     label: Text(_diaNombre(dia)),
                     selected: selected,
                     selectedColor: azul,
                     backgroundColor: fondo.withValues(alpha: .55),
+                    side: BorderSide(
+                      color: selected ? azul : textoSuave.withValues(alpha: .35),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     labelStyle: TextStyle(
                       color: selected ? Colors.white : textoSuave,
                       fontWeight: FontWeight.bold,
@@ -422,17 +434,19 @@ class _AdminHomeState extends State<AdminHome> {
               Row(
                 children: [
                   Expanded(
-                    child: _pickerButton(
-                      Icons.schedule,
+                    child: _timeBlockButton(
+                      "Inicio",
                       disponibilidadInicio.format(context),
+                      Icons.schedule,
                       () => _pickAvailabilityTime(true),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _pickerButton(
-                      Icons.schedule_outlined,
+                    child: _timeBlockButton(
+                      "Fin",
                       disponibilidadFin.format(context),
+                      Icons.schedule_outlined,
                       () => _pickAvailabilityTime(false),
                     ),
                   ),
@@ -466,22 +480,38 @@ class _AdminHomeState extends State<AdminHome> {
             final bloque = entry.value;
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
               decoration: _box(),
               child: Row(
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: azulOscuro,
-                    child: Icon(Icons.event_available, color: Colors.white),
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: azul.withValues(alpha: .18),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.event_available, color: textoSuave),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      "${_diaNombre(_asInt(bloque["dia_semana"]))}  ${bloque["hora_inicio"]} - ${bloque["hora_fin"]}",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _diaNombre(_asInt(bloque["dia_semana"])),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          "${bloque["hora_inicio"]} - ${bloque["hora_fin"]}",
+                          style: const TextStyle(color: textoSuave),
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -555,7 +585,7 @@ class _AdminHomeState extends State<AdminHome> {
         ),
         _circle(Icons.edit_outlined, azulOscuro, onTap: editarPerfil),
         const SizedBox(width: 10),
-        _circle(Icons.medical_services_outlined, azul),
+        _circle(Icons.medical_services_outlined, azul, onTap: abrirAjustes),
       ],
     );
   }
@@ -1058,6 +1088,55 @@ class _AdminHomeState extends State<AdminHome> {
                 text,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timeBlockButton(
+    String label,
+    String value,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        height: 74,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: fondo.withValues(alpha: .55),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: azul.withValues(alpha: .24)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: textoSuave, size: 21),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(color: textoSuave, fontSize: 12),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    value,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

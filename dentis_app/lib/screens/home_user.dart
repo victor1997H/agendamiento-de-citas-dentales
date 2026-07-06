@@ -113,7 +113,6 @@ class _UserHomeState extends State<UserHome> {
       final ok = await _citaRepository.crearCita({
         "paciente": widget.user["nombre"] ?? "Paciente",
         "servicio": selectedService,
-        "doctor_id": 1,
         "fecha": fecha.toIso8601String(),
         "notas": _notesController.text.trim(),
       });

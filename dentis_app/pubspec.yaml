@@ -38,6 +38,7 @@ dependencies:
   # recordatorios locales de citas
   flutter_local_notifications: ^17.2.4
   timezone: ^0.9.4
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

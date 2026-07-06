@@ -255,23 +255,45 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
       );
     }
 
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: horasDisponibles.map((hora) {
-        final selected = horaSeleccionada == hora;
-        return ChoiceChip(
-          label: Text(hora),
-          selected: selected,
-          selectedColor: azul,
-          backgroundColor: panel,
-          labelStyle: TextStyle(
-            color: selected ? Colors.white : textoSuave,
-            fontWeight: FontWeight.bold,
-          ),
-          onSelected: (_) => setState(() => horaSeleccionada = hora),
-        );
-      }).toList(),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: panel,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: .08)),
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: horasDisponibles.map((hora) {
+          final selected = horaSeleccionada == hora;
+          return ChoiceChip(
+            showCheckmark: false,
+            avatar: Icon(
+              Icons.schedule,
+              size: 16,
+              color: selected ? Colors.white : textoSuave,
+            ),
+            label: Text(hora),
+            selected: selected,
+            selectedColor: azul,
+            backgroundColor: fondo.withValues(alpha: .55),
+            side: BorderSide(
+              color: selected ? azul : textoSuave.withValues(alpha: .28),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : textoSuave,
+              fontWeight: FontWeight.bold,
+            ),
+            onSelected: (_) => setState(() => horaSeleccionada = hora),
+          );
+        }).toList(),
+      ),
     );
   }
 
