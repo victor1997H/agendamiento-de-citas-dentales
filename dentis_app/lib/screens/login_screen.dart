@@ -75,22 +75,21 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       setState(() => loading = false);
-      _showMsg("Error de conexión");
+      _showMsg("Error de conexion");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     const Color azulMate = Color(0xff2F6F88);
-    const Color azulMateOscuro = Color(0xff1F4F63);
     const Color campoMate = Color(0xff18323B);
+    final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
           Image.asset(
-            
             "assets/images/fondo1.jpg",
             fit: BoxFit.fill,
             alignment: Alignment.center,
@@ -98,206 +97,119 @@ class _LoginScreenState extends State<LoginScreen> {
           Container(
             color: Colors.black.withOpacity(.50),
           ),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
-                child: Column(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 32,
-                      ),
-                      decoration: BoxDecoration(
-                        color: azulMateOscuro.withOpacity(.82),
-                        borderRadius: BorderRadius.circular(35),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(.16),
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                _waveHeader(topPadding),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "CORREO",
+                          style: TextStyle(
+                            color: Colors.grey.shade300,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(.25),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
                       ),
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            width: 95,
-                            height: 95,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Container(
-                                  width: 82,
-                                  height: 82,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withOpacity(.10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.white.withOpacity(.22),
-                                        blurRadius: 24,
-                                        spreadRadius: 3,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                CustomPaint(
-                                  size: const Size(66, 76),
-                                  painter: ToothPainter(
-                                    color: azulMateOscuro,
-                                    shineColor: Colors.white.withOpacity(.45),
-                                  ),
-                                ),
-                              ],
-                            ),
+                      const SizedBox(height: 8),
+                      _input(
+                        emailController,
+                        Icons.email_outlined,
+                        campoMate,
+                      ),
+                      const SizedBox(height: 22),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "CONTRASENA",
+                          style: TextStyle(
+                            color: Colors.grey.shade300,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 18),
-                          const Text(
-                            "SmartTooth",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            "Agenda tu cita",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 9,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(.14),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              "Inicia sesión con tu cuenta",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _input(
+                        passwordController,
+                        Icons.lock_outline,
+                        campoMate,
+                        obscure: obscurePassword,
+                        isPassword: true,
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen(),
                               ),
+                            );
+                          },
+                          child: const Text(
+                            "Olvidaste tu contrasena?",
+                            style: TextStyle(
+                              color: Color(0xffB8D8E0),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "CORREO",
-                        style: TextStyle(
-                          color: Colors.grey.shade300,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    _input(
-                      emailController,
-                      Icons.email_outlined,
-                      campoMate,
-                    ),
-                    const SizedBox(height: 22),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "CONTRASEÑA",
-                        style: TextStyle(
-                          color: Colors.grey.shade300,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 58,
+                        child: ElevatedButton(
+                          onPressed: loading ? null : login,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: azulMate,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          child: loading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  "Ingresar al sistema",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    _input(
-                      passwordController,
-                      Icons.lock_outline,
-                      campoMate,
-                      obscure: obscurePassword,
-                      isPassword: true,
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
+                      const SizedBox(height: 20),
+                      TextButton(
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ForgotPasswordScreen(),
+                              builder: (_) => const RegisterScreen(),
                             ),
                           );
                         },
                         child: const Text(
-                          "¿Olvidaste tu contraseña?",
+                          "Crear cuenta",
                           style: TextStyle(
-                            color: Color(0xffB8D8E0),
+                            color: Colors.white70,
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 15),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 58,
-                      child: ElevatedButton(
-                        onPressed: loading ? null : login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: azulMate,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: loading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : const Text(
-                                "Ingresar al sistema",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        "Crear cuenta",
-                        style: TextStyle(
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
           if (loading)
@@ -310,6 +222,106 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _waveHeader(double topPadding) {
+    const Color azulMateOscuro = Color(0xff1F4F63);
+
+    return SizedBox(
+      width: double.infinity,
+      height: 385 + topPadding,
+      child: ClipPath(
+        clipper: LoginWaveClipper(),
+        child: CustomPaint(
+          painter: LoginContourPainter(),
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(22, topPadding + 24, 22, 72),
+            decoration: BoxDecoration(
+              color: azulMateOscuro.withOpacity(.82),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withOpacity(.16),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 95,
+                  height: 95,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 82,
+                        height: 82,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(.12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(.26),
+                              blurRadius: 24,
+                              spreadRadius: 3,
+                            ),
+                          ],
+                        ),
+                      ),
+                      CustomPaint(
+                        size: const Size(66, 76),
+                        painter: ToothPainter(
+                          color: azulMateOscuro,
+                          shineColor: Colors.white.withOpacity(.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  "SmartTooth",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  "Agenda tu cita",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.14),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    "Inicia sesion con tu cuenta",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -356,6 +368,130 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
+
+class _DiagonalGlow extends StatelessWidget {
+  const _DiagonalGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _DiagonalGlowPainter(),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _DiagonalGlowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xff1C9B78).withOpacity(.18)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    final path = Path()
+      ..moveTo(-60, 0)
+      ..lineTo(size.width * .25, 0)
+      ..lineTo(size.width * .68, size.height)
+      ..lineTo(size.width * .45, size.height)
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class LoginWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+
+    path.lineTo(0, size.height * .80);
+    path.cubicTo(
+      size.width * .23,
+      size.height * .70,
+      size.width * .43,
+      size.height * .99,
+      size.width * .68,
+      size.height * .85,
+    );
+    path.cubicTo(
+      size.width * .84,
+      size.height * .78,
+      size.width * .94,
+      size.height * .84,
+      size.width,
+      size.height * .74,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class LoginContourPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(.13)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..isAntiAlias = true;
+
+    for (int i = 0; i < 9; i++) {
+      final path = Path();
+      final top = 22.0 + (i * 28);
+
+      path.moveTo(-34, top);
+      path.cubicTo(
+        size.width * .20,
+        top - 36,
+        size.width * .34,
+        top + 46,
+        size.width * .58,
+        top + 4,
+      );
+      path.cubicTo(
+        size.width * .80,
+        top - 28,
+        size.width * .92,
+        top + 34,
+        size.width + 34,
+        top,
+      );
+
+      canvas.drawPath(path, paint);
+    }
+
+    final ovalPaint = Paint()
+      ..color = Colors.white.withOpacity(.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..isAntiAlias = true;
+
+    for (int i = 0; i < 5; i++) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(size.width * .55, 80 + (i * 19)),
+          width: 90 + (i * 36),
+          height: 42 + (i * 22),
+        ),
+        ovalPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class ToothPainter extends CustomPainter {
