@@ -19,7 +19,7 @@ class Validators {
     if (value.length < 8) return "Mínimo 8 caracteres";
     if (!RegExp(r'[A-Z]').hasMatch(value)) return "Incluye una mayúscula";
     if (!RegExp(r'[a-z]').hasMatch(value)) return "Incluye una minúscula";
-    if (!RegExp(r'[0-9]').hasMatch(value)) return "Incluye un número";
+    if (!value.contains(".")) return "Incluye un punto";
     return null;
   }
 

@@ -1,87 +1,127 @@
 import os
-import smtplib
-from email.message import EmailMessage
+
+import requests
 
 
-def _smtp_configured():
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-
-    return bool(smtp_host and smtp_user and smtp_password)
+BREVO_EMAIL_URL = "https://api.brevo.com/v3/smtp/email"
 
 
-def _send_email(to_email, subject, body):
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    smtp_from = os.getenv("SMTP_FROM", smtp_user or "no-reply@smarttooth.app")
-    use_tls = os.getenv("SMTP_USE_TLS", "true").lower() != "false"
+def _app_name():
+    return os.getenv("FRONTEND_APP_NAME", "SmartTooth")
 
-    if not _smtp_configured():
-        print("SMTP no configurado: no se pudo enviar el correo")
+
+def _brevo_configured():
+    return bool(
+        os.getenv("BREVO_API_KEY")
+        and os.getenv("BREVO_SENDER_EMAIL")
+    )
+
+
+def _debug_reset_code_enabled():
+    return (
+        os.getenv("DEBUG_RESET_CODE", "false").lower() == "true"
+        or os.getenv("SMTP_DEBUG_CODE", "false").lower() == "true"
+    )
+
+
+def _send_brevo_email(to_email, subject, text_content, html_content=None):
+    api_key = os.getenv("BREVO_API_KEY")
+    sender_email = os.getenv("BREVO_SENDER_EMAIL")
+    sender_name = os.getenv("BREVO_SENDER_NAME", _app_name())
+
+    if not _brevo_configured():
+        print("Brevo no configurado: faltan BREVO_API_KEY o BREVO_SENDER_EMAIL")
         return False
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = smtp_from
-    message["To"] = to_email
-    message.set_content(body)
+    payload = {
+        "sender": {
+            "name": sender_name,
+            "email": sender_email,
+        },
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": text_content,
+    }
+
+    if html_content:
+        payload["htmlContent"] = html_content
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
-            if use_tls:
-                server.starttls()
-            server.login(smtp_user, smtp_password)
-            server.send_message(message)
-        return True
-    except Exception as e:
-        print("SEND EMAIL ERROR:", e)
+        response = requests.post(
+            BREVO_EMAIL_URL,
+            headers={
+                "accept": "application/json",
+                "api-key": api_key,
+                "content-type": "application/json",
+            },
+            json=payload,
+            timeout=15,
+        )
+
+        if 200 <= response.status_code < 300:
+            return True
+
+        print("BREVO EMAIL ERROR:", response.status_code, response.text[:300])
+        return False
+    except Exception as exc:
+        print("BREVO EMAIL EXCEPTION:", exc)
         return False
 
 
 def send_welcome_email(to_email, name):
-    body = "\n".join([
+    app_name = _app_name()
+    subject = f"Bienvenido a {app_name}"
+    text = "\n".join([
         f"Hola {name},",
         "",
-        "Tu cuenta en SmartTooth fue creada correctamente.",
+        f"Tu cuenta en {app_name} fue creada correctamente.",
         "Ya puedes iniciar sesión y gestionar tus citas dentales.",
         "",
         "Si no creaste esta cuenta, comunícate con soporte.",
         "",
-        "SmartTooth",
+        app_name,
     ])
+    html = f"""
+    <p>Hola {name},</p>
+    <p>Tu cuenta en <strong>{app_name}</strong> fue creada correctamente.</p>
+    <p>Ya puedes iniciar sesión y gestionar tus citas dentales.</p>
+    <p>Si no creaste esta cuenta, comunícate con soporte.</p>
+    <p>{app_name}</p>
+    """
 
-    return _send_email(
-        to_email,
-        "Bienvenido a SmartTooth",
-        body,
-    )
+    return _send_brevo_email(to_email, subject, text, html)
 
 
 def send_password_reset_code(to_email, code):
-    if not _smtp_configured():
-        if os.getenv("SMTP_DEBUG_CODE", "false").lower() == "true":
+    app_name = _app_name()
+
+    if not _brevo_configured():
+        if _debug_reset_code_enabled():
             print(f"PASSWORD RESET CODE for {to_email}: {code}")
             return True
-
-        print("SMTP no configurado: no se pudo enviar el código de seguridad")
+        print("Brevo no configurado: no se pudo enviar el código de seguridad")
         return False
 
-    body = "\n".join([
+    subject = f"Código de recuperación - {app_name}"
+    text = "\n".join([
         "Hola,",
         "",
-        "Recibimos una solicitud para cambiar la contraseña de tu cuenta SmartTooth.",
+        f"Recibimos una solicitud para cambiar la contraseña de tu cuenta {app_name}.",
         f"Tu código de seguridad es: {code}",
         "",
-        "Este código vence en 10 minutos. Si no solicitaste este cambio, ignora este correo.",
+        "Este código vence en 10 minutos.",
+        "Si no solicitaste este cambio, ignora este correo.",
         "",
-        "SmartTooth",
+        app_name,
     ])
+    html = f"""
+    <p>Hola,</p>
+    <p>Recibimos una solicitud para cambiar la contraseña de tu cuenta <strong>{app_name}</strong>.</p>
+    <p>Tu código de seguridad es:</p>
+    <p style="font-size:24px;font-weight:700;letter-spacing:4px;">{code}</p>
+    <p>Este código vence en <strong>10 minutos</strong>.</p>
+    <p>Si no solicitaste este cambio, ignora este correo.</p>
+    <p>{app_name}</p>
+    """
 
-    return _send_email(
-        to_email,
-        "Código de seguridad SmartTooth",
-        body,
-    )
+    return _send_brevo_email(to_email, subject, text, html)

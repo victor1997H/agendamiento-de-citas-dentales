@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
 import '../data/datasources/session_datasource.dart';
 import '../data/repositories/cita_repository.dart';
 import '../services/sync_service.dart';
@@ -28,13 +29,11 @@ class _UserHomeState extends State<UserHome> {
   TimeOfDay? selectedTime;
   List<Map<String, dynamic>> citas = [];
 
-  static const Color fondo = Color(0xff08151B);
-  static const Color panelClaro = Color(0xff18323B);
-  static const Color azulMate = Color(0xff2F6F88);
-  static const Color azulPrincipal = Color(0xff2F6F88);
-  static const Color azulOscuro = Color(0xff1F4F63);
-  static const Color textoSuave = Color(0xff9FC7D3);
-  static const Color rojoSalir = Color(0xffD95B6A);
+  static const Color azulMate = AppTheme.primary;
+  static const Color azulPrincipal = AppTheme.primary;
+  static const Color azulOscuro = AppTheme.primaryDark;
+  static const Color textoSuave = AppTheme.softText;
+  static const Color rojoSalir = AppTheme.danger;
   static const Color amarillo = Color(0xffF1B64B);
 
   static const List<String> servicios = [
@@ -179,16 +178,17 @@ class _UserHomeState extends State<UserHome> {
   @override
   Widget build(BuildContext context) {
     final nombre = widget.user["nombre"] ?? "Paciente";
+    final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: fondo,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadCitas,
-                color: azulPrincipal,
+                color: colors.primary,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 18),
@@ -216,6 +216,7 @@ class _UserHomeState extends State<UserHome> {
 
   Widget _inicioContent(String nombre) {
     final proxima = citas.isNotEmpty ? citas.first : null;
+    final colors = AppColors.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,12 +229,12 @@ class _UserHomeState extends State<UserHome> {
         const SizedBox(height: 15),
         _doctorCard(),
         const SizedBox(height: 18),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 18),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Text(
             "Historial reciente",
             style: TextStyle(
-              color: Colors.white,
+              color: colors.text,
               fontSize: 15,
               fontWeight: FontWeight.bold,
             ),
@@ -241,10 +242,10 @@ class _UserHomeState extends State<UserHome> {
         ),
         const SizedBox(height: 10),
         if (loadingCitas)
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(18),
-              child: CircularProgressIndicator(color: textoSuave),
+              padding: const EdgeInsets.all(18),
+              child: CircularProgressIndicator(color: colors.muted),
             ),
           )
         else if (citas.isEmpty)
@@ -256,6 +257,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _agendarContent(String nombre) {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -268,10 +271,10 @@ class _UserHomeState extends State<UserHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Nueva cita",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: colors.text,
                   fontSize: 19,
                   fontWeight: FontWeight.bold,
                 ),
@@ -312,12 +315,12 @@ class _UserHomeState extends State<UserHome> {
               TextField(
                 controller: _notesController,
                 maxLines: 3,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: colors.text),
                 decoration: InputDecoration(
                   hintText: "Ej. Dolor, control o preferencia de horario",
-                  hintStyle: const TextStyle(color: Colors.white38),
+                  hintStyle: TextStyle(color: colors.muted),
                   filled: true,
-                  fillColor: fondo.withValues(alpha: .55),
+                  fillColor: colors.field.withValues(alpha: .75),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -359,6 +362,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _misCitasContent(String nombre) {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -368,11 +373,11 @@ class _UserHomeState extends State<UserHome> {
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   "Citas registradas",
                   style: TextStyle(
-                    color: Colors.white,
+                    color: colors.text,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -380,17 +385,17 @@ class _UserHomeState extends State<UserHome> {
               ),
               IconButton(
                 onPressed: loadingCitas ? null : _loadCitas,
-                icon: const Icon(Icons.refresh, color: textoSuave),
+                icon: Icon(Icons.refresh, color: colors.muted),
               ),
             ],
           ),
         ),
         const SizedBox(height: 8),
         if (loadingCitas)
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(22),
-              child: CircularProgressIndicator(color: textoSuave),
+              padding: const EdgeInsets.all(22),
+              child: CircularProgressIndicator(color: colors.muted),
             ),
           )
         else if (citas.isEmpty)
@@ -402,6 +407,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _header(String nombre, String subtitle) {
+    final colors = AppColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
       child: Row(
@@ -412,8 +419,8 @@ class _UserHomeState extends State<UserHome> {
               children: [
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: textoSuave,
+                  style: TextStyle(
+                    color: colors.muted,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -421,8 +428,8 @@ class _UserHomeState extends State<UserHome> {
                 const SizedBox(height: 4),
                 Text(
                   nombre,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.text,
                     fontSize: 21,
                     fontWeight: FontWeight.bold,
                   ),
@@ -432,8 +439,8 @@ class _UserHomeState extends State<UserHome> {
           ),
           _circleButton(
             Icons.notifications_none,
-            azulOscuro,
-            textoSuave,
+            colors.isLight ? colors.primary.withValues(alpha: .12) : azulOscuro,
+            colors.isLight ? azulPrincipal : textoSuave,
             onTap: _showNotifications,
           ),
           const SizedBox(width: 10),
@@ -450,7 +457,8 @@ class _UserHomeState extends State<UserHome> {
 
   Widget _citaPrincipal(Map<String, dynamic>? cita) {
     final servicio = cita == null ? "Sin citas próximas" : _serviceName(cita);
-    final doctor = cita == null ? "Agenda tu primera cita" : "Dr. Roberto Méndez";
+    final doctor =
+        cita == null ? "Agenda tu primera cita" : "Dr. Roberto Méndez";
     final fecha = _dateFromCita(cita);
 
     return Container(
@@ -500,6 +508,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _nuevaCita() {
+    final colors = AppColors.of(context);
+
     return GestureDetector(
       onTap: _openNuevaCitaScreen,
       child: Container(
@@ -517,19 +527,19 @@ class _UserHomeState extends State<UserHome> {
               ),
               child: const Icon(
                 Icons.add,
-                color: textoSuave,
+                color: Colors.white,
                 size: 28,
               ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "Nueva cita",
                     style: TextStyle(
-                      color: Colors.white,
+                      color: colors.text,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -538,16 +548,16 @@ class _UserHomeState extends State<UserHome> {
                   Text(
                     "Ver disponibilidad",
                     style: TextStyle(
-                      color: textoSuave,
+                      color: colors.muted,
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward,
-              color: textoSuave,
+              color: colors.muted,
               size: 22,
             ),
           ],
@@ -557,6 +567,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _doctorCard() {
+    final colors = AppColors.of(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.all(16),
@@ -577,14 +589,14 @@ class _UserHomeState extends State<UserHome> {
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "TU DOCTOR",
                   style: TextStyle(
-                    color: textoSuave,
+                    color: colors.muted,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -593,7 +605,7 @@ class _UserHomeState extends State<UserHome> {
                 Text(
                   "Dr. Roberto Méndez",
                   style: TextStyle(
-                    color: Colors.white,
+                    color: colors.text,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
@@ -602,7 +614,7 @@ class _UserHomeState extends State<UserHome> {
                 Text(
                   "Odontólogo General",
                   style: TextStyle(
-                    color: textoSuave,
+                    color: colors.muted,
                     fontSize: 12,
                   ),
                 ),
@@ -618,7 +630,7 @@ class _UserHomeState extends State<UserHome> {
                     Text(
                       "5.0",
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: colors.subtle,
                         fontSize: 12,
                       ),
                     ),
@@ -629,8 +641,8 @@ class _UserHomeState extends State<UserHome> {
           ),
           _circleButton(
             Icons.call,
-            azulOscuro,
-            textoSuave,
+            colors.isLight ? colors.primary.withValues(alpha: .12) : azulOscuro,
+            colors.isLight ? colors.primary : textoSuave,
             onTap: () => _showMsg("Contacto del doctor disponible"),
           ),
         ],
@@ -656,6 +668,8 @@ class _UserHomeState extends State<UserHome> {
     required String estado,
     required Color colorEstado,
   }) {
+    final colors = AppColors.of(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       padding: const EdgeInsets.all(15),
@@ -683,16 +697,16 @@ class _UserHomeState extends State<UserHome> {
               children: [
                 Text(
                   titulo,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.text,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
                   fecha,
-                  style: const TextStyle(
-                    color: textoSuave,
+                  style: TextStyle(
+                    color: colors.muted,
                     fontSize: 12,
                   ),
                 ),
@@ -709,6 +723,7 @@ class _UserHomeState extends State<UserHome> {
     final fecha = _dateFromCita(cita);
     final estado = _statusLabel(cita["estado"]);
     final color = estado == "Pendiente" ? amarillo : azulPrincipal;
+    final colors = AppColors.of(context);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
@@ -734,8 +749,8 @@ class _UserHomeState extends State<UserHome> {
               Expanded(
                 child: Text(
                   _serviceName(cita),
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.text,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -747,24 +762,24 @@ class _UserHomeState extends State<UserHome> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.calendar_today_outlined,
-                  color: textoSuave, size: 17),
+              Icon(Icons.calendar_today_outlined,
+                  color: colors.muted, size: 17),
               const SizedBox(width: 8),
               Text(
                 fecha == null ? _rawDate(cita) : _formatDateTime(fecha),
-                style: const TextStyle(color: textoSuave, fontSize: 13),
+                style: TextStyle(color: colors.muted, fontSize: 13),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             children: [
               Icon(Icons.medical_services_outlined,
-                  color: textoSuave, size: 17),
-              SizedBox(width: 8),
+                  color: colors.muted, size: 17),
+              const SizedBox(width: 8),
               Text(
                 "Dr. Roberto Méndez",
-                style: TextStyle(color: textoSuave, fontSize: 13),
+                style: TextStyle(color: colors.muted, fontSize: 13),
               ),
             ],
           ),
@@ -774,19 +789,21 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _serviceSelector() {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: fondo.withValues(alpha: .55),
+        color: colors.field.withValues(alpha: .75),
         borderRadius: BorderRadius.circular(16),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selectedService,
-          dropdownColor: panelClaro,
-          iconEnabledColor: textoSuave,
+          dropdownColor: colors.panel,
+          iconEnabledColor: colors.muted,
           isExpanded: true,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(color: colors.text, fontSize: 14),
           items: servicios
               .map(
                 (servicio) => DropdownMenuItem(
@@ -809,6 +826,8 @@ class _UserHomeState extends State<UserHome> {
     required String text,
     required VoidCallback onTap,
   }) {
+    final colors = AppColors.of(context);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -816,19 +835,19 @@ class _UserHomeState extends State<UserHome> {
         height: 50,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: fondo.withValues(alpha: .55),
+          color: colors.field.withValues(alpha: .75),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(icon, color: textoSuave, size: 18),
+            Icon(icon, color: colors.muted, size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 text,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colors.text,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -841,10 +860,12 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _label(String text) {
+    final colors = AppColors.of(context);
+
     return Text(
       text,
-      style: const TextStyle(
-        color: textoSuave,
+      style: TextStyle(
+        color: colors.muted,
         fontSize: 12,
         fontWeight: FontWeight.bold,
       ),
@@ -852,6 +873,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _statusPill(String estado, Color colorEstado) {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -861,9 +884,7 @@ class _UserHomeState extends State<UserHome> {
       child: Text(
         estado,
         style: TextStyle(
-          color: colorEstado == azulPrincipal
-              ? const Color(0xff9FC7D3)
-              : const Color(0xffF1B64B),
+          color: colorEstado == azulPrincipal ? colors.primary : colorEstado,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
@@ -872,6 +893,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _emptyPanel(String message) {
+    final colors = AppColors.of(context);
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
@@ -879,8 +902,8 @@ class _UserHomeState extends State<UserHome> {
       decoration: _panelDecoration(),
       child: Text(
         message,
-        style: const TextStyle(
-          color: textoSuave,
+        style: TextStyle(
+          color: colors.muted,
           fontSize: 13,
         ),
       ),
@@ -888,13 +911,16 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _bottomBar() {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      decoration: const BoxDecoration(
-        color: Color(0xff061017),
-        borderRadius: BorderRadius.vertical(
+      decoration: BoxDecoration(
+        color: colors.nav,
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(25),
         ),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -915,11 +941,12 @@ class _UserHomeState extends State<UserHome> {
     bool isExit = false,
   }) {
     final active = selectedIndex == index;
+    final colors = AppColors.of(context);
     final color = isExit
         ? rojoSalir
         : active
-            ? textoSuave
-            : Colors.white38;
+            ? azulPrincipal
+            : colors.muted.withValues(alpha: .72);
 
     return GestureDetector(
       onTap: () {
@@ -1000,17 +1027,20 @@ class _UserHomeState extends State<UserHome> {
   }
 
   BoxDecoration _panelDecoration() {
+    final colors = AppColors.of(context);
+
     return BoxDecoration(
-      color: panelClaro,
+      color: colors.panel,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: Colors.white.withValues(alpha: .08),
-      ),
+      border: Border.all(color: colors.border),
+      boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
     );
   }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final colors = AppColors.of(context);
+    final baseTheme = Theme.of(context);
     final picked = await showDatePicker(
       context: context,
       initialDate: selectedDate ?? now,
@@ -1018,10 +1048,11 @@ class _UserHomeState extends State<UserHome> {
       lastDate: now.add(const Duration(days: 180)),
       builder: (context, child) {
         return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
+          data: baseTheme.copyWith(
+            colorScheme: baseTheme.colorScheme.copyWith(
               primary: azulPrincipal,
-              surface: panelClaro,
+              surface: colors.panel,
+              onSurface: colors.text,
             ),
           ),
           child: child!,
@@ -1035,15 +1066,18 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Future<void> _pickTime() async {
+    final colors = AppColors.of(context);
+    final baseTheme = Theme.of(context);
     final picked = await showTimePicker(
       context: context,
       initialTime: selectedTime ?? const TimeOfDay(hour: 10, minute: 0),
       builder: (context, child) {
         return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
+          data: baseTheme.copyWith(
+            colorScheme: baseTheme.colorScheme.copyWith(
               primary: azulPrincipal,
-              surface: panelClaro,
+              surface: colors.panel,
+              onSurface: colors.text,
             ),
           ),
           child: child!,
@@ -1057,6 +1091,8 @@ class _UserHomeState extends State<UserHome> {
   }
 
   void _showNotifications() {
+    final colors = AppColors.of(context);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1066,10 +1102,10 @@ class _UserHomeState extends State<UserHome> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Notificaciones",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: colors.text,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1102,18 +1138,23 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _sheetContainer({required Widget child}) {
+    final colors = AppColors.of(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-      decoration: const BoxDecoration(
-        color: panelClaro,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      decoration: BoxDecoration(
+        color: colors.panel,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: child,
     );
   }
 
   Widget _notificationItem(IconData icon, String title, String subtitle) {
+    final colors = AppColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -1122,10 +1163,12 @@ class _UserHomeState extends State<UserHome> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: azulOscuro,
+              color: colors.isLight
+                  ? colors.primary.withValues(alpha: .12)
+                  : azulOscuro,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: textoSuave, size: 20),
+            child: Icon(icon, color: colors.primary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1134,8 +1177,8 @@ class _UserHomeState extends State<UserHome> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -1143,7 +1186,7 @@ class _UserHomeState extends State<UserHome> {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: textoSuave, fontSize: 12),
+                  style: TextStyle(color: colors.muted, fontSize: 12),
                 ),
               ],
             ),

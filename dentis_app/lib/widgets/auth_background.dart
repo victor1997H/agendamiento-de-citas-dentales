@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
+
 class AuthBackground extends StatelessWidget {
   final double overlayOpacity;
 
@@ -10,14 +12,18 @@ class AuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        const CustomPaint(
-          painter: AuthBackgroundPainter(),
+        CustomPaint(
+          painter: AuthBackgroundPainter(isLight: colors.isLight),
         ),
         Container(
-          color: Colors.black.withValues(alpha: overlayOpacity),
+          color: colors.isLight
+              ? Colors.white.withValues(alpha: overlayOpacity * .35)
+              : Colors.black.withValues(alpha: overlayOpacity),
         ),
       ],
     );
@@ -73,22 +79,30 @@ class AuthBrandMark extends StatelessWidget {
 }
 
 class AuthBackgroundPainter extends CustomPainter {
-  const AuthBackgroundPainter();
+  final bool isLight;
+
+  const AuthBackgroundPainter({this.isLight = false});
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
 
     final basePaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topRight,
         end: Alignment.bottomLeft,
-        colors: [
-          Color(0xff000106),
-          Color(0xff030616),
-          Color(0xff001E1B),
-        ],
-        stops: [0, .48, 1],
+        colors: isLight
+            ? const [
+                Color(0xffF7FBFC),
+                Color(0xffEAF4F6),
+                Color(0xffDDEEF0),
+              ]
+            : const [
+                Color(0xff000106),
+                Color(0xff030616),
+                Color(0xff001E1B),
+              ],
+        stops: const [0, .48, 1],
       ).createShader(rect);
     canvas.drawRect(rect, basePaint);
 
@@ -97,8 +111,10 @@ class AuthBackgroundPainter extends CustomPainter {
         center: const Alignment(-1.15, .72),
         radius: 1.25,
         colors: [
-          const Color(0xff0A5F43).withValues(alpha: .62),
-          const Color(0xff073D35).withValues(alpha: .18),
+          (isLight ? const Color(0xff78C9AF) : const Color(0xff0A5F43))
+              .withValues(alpha: isLight ? .38 : .62),
+          (isLight ? const Color(0xffB8DEE3) : const Color(0xff073D35))
+              .withValues(alpha: isLight ? .25 : .18),
           Colors.transparent,
         ],
         stops: const [0, .46, 1],
@@ -110,7 +126,8 @@ class AuthBackgroundPainter extends CustomPainter {
         center: const Alignment(.72, -.95),
         radius: .95,
         colors: [
-          const Color(0xff173A56).withValues(alpha: .38),
+          (isLight ? const Color(0xffB6DDE8) : const Color(0xff173A56))
+              .withValues(alpha: isLight ? .45 : .38),
           Colors.transparent,
         ],
       ).createShader(rect);
@@ -125,7 +142,8 @@ class AuthBackgroundPainter extends CustomPainter {
     _drawSoftBand(
       canvas,
       mainBand,
-      const Color(0xff0E6B4A).withValues(alpha: .55),
+      (isLight ? const Color(0xff7DC9B3) : const Color(0xff0E6B4A))
+          .withValues(alpha: isLight ? .38 : .55),
     );
 
     final tealBand = Path()
@@ -137,7 +155,8 @@ class AuthBackgroundPainter extends CustomPainter {
     _drawSoftBand(
       canvas,
       tealBand,
-      const Color(0xff1F6472).withValues(alpha: .28),
+      (isLight ? const Color(0xff8DBFCD) : const Color(0xff1F6472))
+          .withValues(alpha: isLight ? .28 : .28),
     );
 
     final darkCut = Path()
@@ -149,7 +168,8 @@ class AuthBackgroundPainter extends CustomPainter {
     _drawSoftBand(
       canvas,
       darkCut,
-      Colors.black.withValues(alpha: .34),
+      (isLight ? const Color(0xffCFE5EA) : Colors.black)
+          .withValues(alpha: isLight ? .30 : .34),
     );
 
     final edgeBand = Path()
@@ -161,7 +181,8 @@ class AuthBackgroundPainter extends CustomPainter {
     _drawSoftBand(
       canvas,
       edgeBand,
-      const Color(0xff4C8F72).withValues(alpha: .34),
+      (isLight ? const Color(0xffB4DAC9) : const Color(0xff4C8F72))
+          .withValues(alpha: .34),
     );
 
     _drawTexture(canvas, size, mainBand);
@@ -173,7 +194,8 @@ class AuthBackgroundPainter extends CustomPainter {
         radius: .88,
         colors: [
           Colors.transparent,
-          Colors.black.withValues(alpha: .55),
+          (isLight ? const Color(0xff9ABAC1) : Colors.black)
+              .withValues(alpha: isLight ? .18 : .55),
         ],
         stops: const [.48, 1],
       ).createShader(rect);
@@ -221,7 +243,9 @@ class AuthBackgroundPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant AuthBackgroundPainter oldDelegate) => false;
+  bool shouldRepaint(covariant AuthBackgroundPainter oldDelegate) {
+    return oldDelegate.isLight != isLight;
+  }
 }
 
 class ToothPainter extends CustomPainter {

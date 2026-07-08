@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/theme/app_theme.dart';
 import '../core/utils/validators.dart';
 import '../data/repositories/usuario_repository.dart';
 import '../widgets/auth_background.dart';
@@ -28,9 +29,9 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
   bool loading = false;
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
-  String? resetToken;
+  String? verifiedCode;
 
-  bool get codeVerified => resetToken != null;
+  bool get codeVerified => verifiedCode != null;
 
   @override
   void initState() {
@@ -67,16 +68,16 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
     setState(() => loading = true);
 
     try {
-      final token = await repository.verifyResetCode(widget.email, code);
+      final ok = await repository.verifyResetCode(widget.email, code);
 
       if (!mounted) return;
 
       setState(() {
         loading = false;
-        resetToken = token;
+        verifiedCode = ok ? code : null;
       });
 
-      if (token == null) {
+      if (!ok) {
         _showMsg("Código incorrecto o vencido");
         return;
       }
@@ -99,7 +100,7 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
 
       setState(() {
         loading = false;
-        resetToken = null;
+        verifiedCode = null;
       });
 
       if (ok) {
@@ -130,8 +131,8 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
       return;
     }
 
-    final token = resetToken;
-    if (token == null) {
+    final code = verifiedCode;
+    if (code == null) {
       _showMsg("Verifica el código primero");
       return;
     }
@@ -141,7 +142,7 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
     try {
       final ok = await repository.resetPassword(
         widget.email,
-        token,
+        code,
         password,
       );
 
@@ -165,12 +166,13 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color azulMate = Color(0xff2F6F88);
-    const Color azulMateOscuro = Color(0xff1F4F63);
-    const Color campoMate = Color(0xff18323B);
+    final colors = AppColors.of(context);
+    const Color azulMate = AppTheme.primary;
+    const Color azulMateOscuro = AppTheme.primaryDark;
+    const Color campoMate = AppTheme.darkPanel;
 
     return Scaffold(
-      backgroundColor: const Color(0xff02050B),
+      backgroundColor: colors.background,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -192,17 +194,18 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                         vertical: 30,
                       ),
                       decoration: BoxDecoration(
-                        color: azulMateOscuro.withValues(alpha: .84),
+                        color: colors.isLight
+                            ? colors.panel.withValues(alpha: .94)
+                            : azulMateOscuro.withValues(alpha: .84),
                         borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .16),
-                        ),
+                        border: Border.all(color: colors.border),
                         boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: .28),
-                            blurRadius: 22,
-                            offset: const Offset(0, 10),
-                          ),
+                          colors.softShadow ??
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: .28),
+                                blurRadius: 22,
+                                offset: const Offset(0, 10),
+                              ),
                         ],
                       ),
                       child: Column(
@@ -210,17 +213,20 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                         children: [
                           AuthBrandMark(
                             size: 78,
-                            toothColor: azulMateOscuro,
-                            shineColor: Colors.white.withValues(alpha: .45),
+                            toothColor:
+                                colors.isLight ? azulMate : azulMateOscuro,
+                            shineColor: colors.isLight
+                                ? Colors.white.withValues(alpha: .70)
+                                : Colors.white.withValues(alpha: .45),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
+                          Text(
                             "Código de seguridad",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 25,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: colors.text,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -229,9 +235,9 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                                 ? "Código verificado. Crea una nueva contraseña segura."
                                 : "Ingresa el código de 6 dígitos enviado al correo registrado.",
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
-                              color: Colors.white70,
+                              color: colors.muted,
                               height: 1.45,
                             ),
                           ),
@@ -252,9 +258,9 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                                   verifyCode();
                                 }
                               },
-                              cursorColor: const Color(0xffB8D8E0),
-                              style: const TextStyle(
-                                color: Colors.white,
+                              cursorColor: colors.primary,
+                              style: TextStyle(
+                                color: colors.text,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 8,
@@ -262,14 +268,16 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                               decoration: InputDecoration(
                                 counterText: "",
                                 filled: true,
-                                fillColor: campoMate.withValues(alpha: .94),
-                                prefixIcon: const Icon(
+                                fillColor: colors.isLight
+                                    ? colors.field.withValues(alpha: .94)
+                                    : campoMate.withValues(alpha: .94),
+                                prefixIcon: Icon(
                                   Icons.verified_user_outlined,
-                                  color: Colors.white70,
+                                  color: colors.muted,
                                 ),
                                 hintText: "000000",
                                 hintStyle: TextStyle(
-                                  color: Colors.white.withValues(alpha: .24),
+                                  color: colors.muted.withValues(alpha: .35),
                                   letterSpacing: 8,
                                 ),
                                 border: OutlineInputBorder(
@@ -278,8 +286,8 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(18),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xffB8D8E0),
+                                  borderSide: BorderSide(
+                                    color: colors.primary,
                                     width: 1.3,
                                   ),
                                 ),
@@ -313,9 +321,9 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                             const SizedBox(height: 12),
                             TextButton(
                               onPressed: loading ? null : resendCode,
-                              child: const Text(
+                              child: Text(
                                 "Reenviar código",
-                                style: TextStyle(color: Colors.white70),
+                                style: TextStyle(color: colors.muted),
                               ),
                             ),
                           ] else ...[
@@ -391,9 +399,9 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                           TextButton(
                             onPressed:
                                 loading ? null : () => Navigator.pop(context),
-                            child: const Text(
+                            child: Text(
                               "Volver",
-                              style: TextStyle(color: Colors.white70),
+                              style: TextStyle(color: colors.muted),
                             ),
                           ),
                         ],
@@ -406,9 +414,11 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
           ),
           if (loading)
             Container(
-              color: Colors.black.withValues(alpha: .45),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+              color: colors.isLight
+                  ? Colors.white.withValues(alpha: .55)
+                  : Colors.black.withValues(alpha: .45),
+              child: Center(
+                child: CircularProgressIndicator(color: colors.primary),
               ),
             ),
         ],
@@ -429,6 +439,8 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
     VoidCallback? onSubmitted,
     VoidCallback? onTogglePassword,
   }) {
+    final colors = AppColors.of(context);
+
     return TextField(
       controller: controller,
       obscureText: obscure,
@@ -440,33 +452,32 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
       enableSuggestions: false,
       onChanged: onChanged,
       onSubmitted: (_) => onSubmitted?.call(),
-      cursorColor: const Color(0xffB8D8E0),
-      style: const TextStyle(color: Colors.white),
+      cursorColor: colors.primary,
+      style: TextStyle(color: colors.text),
       decoration: InputDecoration(
         filled: true,
-        fillColor: fillColor.withValues(alpha: .94),
-        prefixIcon: Icon(icon, color: Colors.white70),
+        fillColor: colors.isLight
+            ? colors.field.withValues(alpha: .94)
+            : fillColor.withValues(alpha: .94),
+        prefixIcon: Icon(icon, color: colors.muted),
         suffixIcon: IconButton(
           tooltip: obscure ? "Mostrar contraseña" : "Ocultar contraseña",
           icon: Icon(
             obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: Colors.white70,
+            color: colors.muted,
           ),
           onPressed: onTogglePassword,
         ),
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70),
-        floatingLabelStyle: const TextStyle(color: Color(0xffB8D8E0)),
+        labelStyle: TextStyle(color: colors.muted),
+        floatingLabelStyle: TextStyle(color: colors.primary),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: Color(0xffB8D8E0),
-            width: 1.3,
-          ),
+          borderSide: BorderSide(color: colors.primary, width: 1.3),
         ),
       ),
     );

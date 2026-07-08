@@ -17,7 +17,7 @@ class UsuarioRepository {
     return await ApiClient.requestPasswordResetCode(email);
   }
 
-  Future<String?> verifyResetCode(
+  Future<bool> verifyResetCode(
     String email,
     String code,
   ) async {
@@ -26,10 +26,10 @@ class UsuarioRepository {
 
   Future<bool> resetPassword(
     String email,
-    String resetToken,
+    String code,
     String newPassword,
   ) async {
-    return await ApiClient.resetPassword(email, resetToken, newPassword);
+    return await ApiClient.resetPassword(email, code, newPassword);
   }
 
   Future<Map<String, dynamic>?> actualizarPerfil(

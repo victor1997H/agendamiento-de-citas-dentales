@@ -1,1 +1,0 @@
-KEY_FERNET = b"BA05lK4xkgbKhLJW-uI61YcNTq_xvLvWu8Pkda4_0Rw="

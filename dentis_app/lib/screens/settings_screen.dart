@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/theme/app_theme.dart';
 import '../data/datasources/session_datasource.dart';
 import '../services/device_auth_service.dart';
 import 'login_screen.dart';
@@ -19,11 +20,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const Color fondo = Color(0xff08151B);
-  static const Color panel = Color(0xff18323B);
-  static const Color azul = Color(0xff2F6F88);
-  static const Color textoSuave = Color(0xff9FC7D3);
-  static const Color rojo = Color(0xffD95B6A);
+  static const Color azul = AppTheme.primary;
+  static const Color rojo = AppTheme.danger;
 
   final picker = ImagePicker();
   bool deviceAuth = false;
@@ -44,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() {
       deviceAuth = enabled;
-      lightMode = prefs.getBool("smarttooth_light_mode") ?? false;
+      lightMode = AppThemeController.lightMode.value;
       photoPath = prefs.getString(_photoKey);
     });
   }
@@ -82,8 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _toggleLightMode(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool("smarttooth_light_mode", value);
+    await AppThemeController.setLightMode(value);
     if (!mounted) return;
     setState(() => lightMode = value);
   }
@@ -115,12 +112,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final nombre = widget.user["nombre"]?.toString() ?? "Usuario";
     final email = widget.user["email"]?.toString() ?? "Sin correo";
+    final role = widget.user["rol"]?.toString() ?? "usuario";
+    final isDoctorProfile = role == "doctor" || role == "admin";
+    final colors = AppColors.of(context);
+    lightMode = colors.isLight;
 
     return Scaffold(
-      backgroundColor: lightMode ? const Color(0xffEDF5F7) : fondo,
+      backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: lightMode ? fondo : Colors.white,
+        foregroundColor: colors.text,
         elevation: 0,
         title: const Text("Ajustes"),
       ),
@@ -138,9 +139,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: CircleAvatar(
                     radius: 34,
                     backgroundColor: azul,
-                    backgroundImage: photoPath != null && File(photoPath!).existsSync()
-                        ? FileImage(File(photoPath!))
-                        : null,
+                    backgroundImage:
+                        photoPath != null && File(photoPath!).existsSync()
+                            ? FileImage(File(photoPath!))
+                            : null,
                     child: photoPath == null
                         ? Text(
                             nombre.isEmpty ? "S" : nombre[0].toUpperCase(),
@@ -163,7 +165,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: lightMode ? fondo : Colors.white,
+                          color: colors.text,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -173,13 +175,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: textoSuave),
+                        style: TextStyle(color: colors.muted),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         "Toca la foto para cambiarla",
                         style: TextStyle(
-                          color: lightMode ? azul : textoSuave,
+                          color: colors.muted,
                           fontSize: 12,
                         ),
                       ),
@@ -193,7 +195,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _tile(
             Icons.edit_outlined,
             "Editar perfil y contraseña",
-            "Nombre, teléfono, especialidad y clave",
+            isDoctorProfile
+                ? "Nombre, teléfono, especialidad y clave"
+                : "Nombre, teléfono, correo y clave",
             _editProfile,
           ),
           _switchTile(
@@ -230,6 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool danger = false,
   }) {
     final color = danger ? rojo : azul;
+    final colors = AppColors.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
@@ -251,19 +256,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      color: lightMode ? fondo : Colors.white,
+                      color: AppColors.of(context).text,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: textoSuave, fontSize: 12),
+                    style: TextStyle(color: colors.muted, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: danger ? rojo : textoSuave),
+            Icon(Icons.chevron_right, color: danger ? rojo : colors.muted),
           ],
         ),
       ),
@@ -277,6 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool value,
     ValueChanged<bool> onChanged,
   ) {
+    final colors = AppColors.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
@@ -295,14 +301,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   title,
                   style: TextStyle(
-                    color: lightMode ? fondo : Colors.white,
+                    color: AppColors.of(context).text,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: textoSuave, fontSize: 12),
+                  style: TextStyle(color: colors.muted, fontSize: 12),
                 ),
               ],
             ),
@@ -314,19 +320,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   BoxDecoration _box() {
+    final colors = AppColors.of(context);
     return BoxDecoration(
-      color: lightMode ? Colors.white : panel,
+      color: colors.panel,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: Colors.white.withValues(alpha: .08)),
-      boxShadow: lightMode
-          ? [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: .06),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
-              ),
-            ]
-          : null,
+      border: Border.all(color: colors.border),
+      boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
     );
   }
 }

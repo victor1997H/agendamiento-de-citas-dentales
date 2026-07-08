@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
 import '../data/datasources/session_datasource.dart';
 import '../data/models/cita_model.dart';
 import '../data/repositories/cita_repository.dart';
 import '../data/repositories/doctor_repository.dart';
+import '../widgets/availability_manager.dart';
 import 'login_screen.dart';
 import 'profile_setup_screen.dart';
 import 'settings_screen.dart';
@@ -25,17 +27,12 @@ class _AdminHomeState extends State<AdminHome> {
   int selectedIndex = 0;
   bool loading = true;
   bool saving = false;
-  bool savingDisponibilidad = false;
   String selectedService = "Consulta General";
   DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
-  int selectedDiaSemana = DateTime.now().weekday;
-  TimeOfDay disponibilidadInicio = const TimeOfDay(hour: 8, minute: 0);
-  TimeOfDay disponibilidadFin = const TimeOfDay(hour: 17, minute: 0);
 
   List<CitaModel> citas = [];
   List<Map<String, dynamic>> pacientes = [];
-  List<Map<String, dynamic>> disponibilidad = [];
   Map<String, dynamic> resumen = {
     "citas_hoy": 0,
     "completadas": 0,
@@ -43,15 +40,12 @@ class _AdminHomeState extends State<AdminHome> {
     "este_mes": 0,
   };
 
-  static const Color fondo = Color(0xff08151B);
-  static const Color panel = Color(0xff18323B);
-  static const Color azul = Color(0xff2F6F88);
-  static const Color azulOscuro = Color(0xff1F4F63);
-  static const Color textoSuave = Color(0xff9FC7D3);
+  static const Color azul = AppTheme.primary;
+  static const Color azulOscuro = AppTheme.primaryDark;
   static const Color amarillo = Color(0xffF4B728);
   static const Color verde = Color(0xff2FA884);
   static const Color rosa = Color(0xffFF5FA2);
-  static const Color rojoSalir = Color(0xffD95B6A);
+  static const Color rojoSalir = AppTheme.danger;
   static const Color morado = Color(0xff8E7CF6);
 
   static const servicios = [
@@ -82,7 +76,6 @@ class _AdminHomeState extends State<AdminHome> {
     final resumenData = await doctorRepository.getResumen();
     final citasData = await doctorRepository.getCitas();
     final pacientesData = await doctorRepository.getPacientes();
-    final disponibilidadData = await doctorRepository.getDisponibilidad();
 
     if (!mounted) return;
 
@@ -90,7 +83,6 @@ class _AdminHomeState extends State<AdminHome> {
       resumen = resumenData;
       citas = citasData;
       pacientes = pacientesData;
-      disponibilidad = disponibilidadData;
       loading = false;
     });
   }
@@ -108,24 +100,6 @@ class _AdminHomeState extends State<AdminHome> {
     }
 
     _msg("Estado actualizado");
-    await cargar();
-  }
-
-  Future<void> guardarDisponibilidad() async {
-    setState(() => savingDisponibilidad = true);
-
-    final ok = await doctorRepository.guardarDisponibilidad(disponibilidad);
-
-    if (!mounted) return;
-
-    setState(() => savingDisponibilidad = false);
-
-    if (!ok) {
-      _msg("No se pudo guardar el horario");
-      return;
-    }
-
-    _msg("Disponibilidad guardada");
     await cargar();
   }
 
@@ -209,16 +183,17 @@ class _AdminHomeState extends State<AdminHome> {
   @override
   Widget build(BuildContext context) {
     final nombre = widget.user["nombre"]?.toString() ?? "Doctor";
+    final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: fondo,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: RefreshIndicator(
                 onRefresh: cargar,
-                color: azul,
+                color: colors.primary,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
@@ -242,6 +217,8 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _panelView(String nombre) {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -257,10 +234,10 @@ class _AdminHomeState extends State<AdminHome> {
         const SizedBox(height: 22),
         _estadoLegend(),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           "Agenda reciente",
           style: TextStyle(
-            color: Colors.white,
+            color: colors.text,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -342,13 +319,15 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _usuariosView(String nombre) {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _header(nombre, "Pacientes"),
         const SizedBox(height: 22),
         if (loading)
-          const Center(child: CircularProgressIndicator(color: Colors.white))
+          Center(child: CircularProgressIndicator(color: colors.primary))
         else if (pacientes.isEmpty)
           _empty("No hay pacientes registrados")
         else
@@ -380,181 +359,12 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _horarioView(String nombre) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _header(nombre, "Disponibilidad"),
-        const SizedBox(height: 22),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: _box(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Días y horas disponibles",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: List.generate(7, (index) {
-                  final dia = index + 1;
-                  final selected = selectedDiaSemana == dia;
-                  return ChoiceChip(
-                    showCheckmark: false,
-                    label: Text(_diaNombre(dia)),
-                    selected: selected,
-                    selectedColor: azul,
-                    backgroundColor: fondo.withValues(alpha: .55),
-                    side: BorderSide(
-                      color: selected ? azul : textoSuave.withValues(alpha: .35),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    labelStyle: TextStyle(
-                      color: selected ? Colors.white : textoSuave,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    onSelected: (_) => setState(() => selectedDiaSemana = dia),
-                  );
-                }),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _timeBlockButton(
-                      "Inicio",
-                      disponibilidadInicio.format(context),
-                      Icons.schedule,
-                      () => _pickAvailabilityTime(true),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _timeBlockButton(
-                      "Fin",
-                      disponibilidadFin.format(context),
-                      Icons.schedule_outlined,
-                      () => _pickAvailabilityTime(false),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: OutlinedButton.icon(
-                  onPressed: _agregarBloqueDisponibilidad,
-                  icon: const Icon(Icons.add),
-                  label: const Text("Agregar bloque"),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: azul.withValues(alpha: .9)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (disponibilidad.isEmpty)
-          _empty("Aún no tienes horarios configurados")
-        else
-          ...disponibilidad.asMap().entries.map((entry) {
-            final bloque = entry.value;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
-              decoration: _box(),
-              child: Row(
-                children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: azul.withValues(alpha: .18),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.event_available, color: textoSuave),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _diaNombre(_asInt(bloque["dia_semana"])),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          "${bloque["hora_inicio"]} - ${bloque["hora_fin"]}",
-                          style: const TextStyle(color: textoSuave),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() => disponibilidad.removeAt(entry.key));
-                    },
-                    icon: const Icon(Icons.delete_outline, color: rojoSalir),
-                  ),
-                ],
-              ),
-            );
-          }),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: ElevatedButton.icon(
-            onPressed: savingDisponibilidad ? null : guardarDisponibilidad,
-            icon: savingDisponibilidad
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(Icons.save_outlined),
-            label: const Text("Guardar disponibilidad"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: azul,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    return AvailabilityManager(doctorName: nombre);
   }
 
   Widget _header(String nombre, String title) {
+    final colors = AppColors.of(context);
+
     return Row(
       children: [
         Expanded(
@@ -563,8 +373,8 @@ class _AdminHomeState extends State<AdminHome> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: textoSuave,
+                style: TextStyle(
+                  color: colors.muted,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
@@ -574,8 +384,8 @@ class _AdminHomeState extends State<AdminHome> {
                 nombre,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colors.text,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
@@ -635,30 +445,36 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _quickCreateCard() {
+    final colors = AppColors.of(context);
+
     return InkWell(
       onTap: () => setState(() => selectedIndex = 1),
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: _box(),
-        child: const Row(
+        child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: azulOscuro,
-              child: Icon(Icons.add, color: Colors.white),
+              backgroundColor:
+                  colors.isLight ? azul.withValues(alpha: .12) : azulOscuro,
+              child: Icon(
+                Icons.add,
+                color: colors.isLight ? azul : Colors.white,
+              ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 "Crear cita para paciente sin cuenta",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: colors.text,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            Icon(Icons.arrow_forward, color: textoSuave),
+            Icon(Icons.arrow_forward, color: colors.muted),
           ],
         ),
       ),
@@ -674,7 +490,8 @@ class _AdminHomeState extends State<AdminHome> {
       mainAxisSpacing: 12,
       childAspectRatio: 1.25,
       children: [
-        _statCard("Pacientes", pacientes.length, Icons.people_outline, amarillo),
+        _statCard(
+            "Pacientes", pacientes.length, Icons.people_outline, amarillo),
         _statCard("Citas hoy", resumen["citas_hoy"], Icons.event, verde),
         _statCard("Pendientes", resumen["pendientes"], Icons.hourglass_empty,
             Colors.blueAccent),
@@ -684,6 +501,8 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _statCard(String title, dynamic value, IconData icon, Color color) {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _box(),
@@ -697,8 +516,8 @@ class _AdminHomeState extends State<AdminHome> {
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textoSuave,
+                  style: TextStyle(
+                    color: colors.muted,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -721,8 +540,10 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _agendaList({int? limit}) {
+    final colors = AppColors.of(context);
+
     if (loading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return Center(child: CircularProgressIndicator(color: colors.primary));
     }
 
     final data = limit == null ? citas : citas.take(limit).toList();
@@ -736,6 +557,7 @@ class _AdminHomeState extends State<AdminHome> {
 
   Widget _citaCard(CitaModel cita) {
     final color = _estadoColor(cita);
+    final colors = AppColors.of(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -759,8 +581,8 @@ class _AdminHomeState extends State<AdminHome> {
                       cita.paciente.isEmpty ? "Paciente" : cita.paciente,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: colors.text,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -769,7 +591,7 @@ class _AdminHomeState extends State<AdminHome> {
                       "${cita.servicio} - ${cita.fechaHoraTexto}",
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: textoSuave, fontSize: 12),
+                      style: TextStyle(color: colors.muted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -818,6 +640,8 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _availabilityShortcut() {
+    final colors = AppColors.of(context);
+
     return InkWell(
       onTap: () => setState(() => selectedIndex = 4),
       borderRadius: BorderRadius.circular(18),
@@ -832,26 +656,26 @@ class _AdminHomeState extends State<AdminHome> {
               child: Icon(Icons.event_available, color: Colors.white),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "Configurar disponibilidad",
                     style: TextStyle(
-                      color: Colors.white,
+                      color: colors.text,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     "Estos horarios se muestran al paciente al crear una cita.",
-                    style: TextStyle(color: textoSuave, fontSize: 12),
+                    style: TextStyle(color: colors.muted, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: textoSuave),
+            Icon(Icons.chevron_right, color: colors.muted),
           ],
         ),
       ),
@@ -873,8 +697,10 @@ class _AdminHomeState extends State<AdminHome> {
             icon: Icons.check_circle_outline,
             text: "Aceptada",
           ),
-          _LegendItem(color: morado, icon: Icons.cancel_outlined, text: "Cancelada"),
-          _LegendItem(color: rosa, icon: Icons.timer_off_outlined, text: "No asistió"),
+          _LegendItem(
+              color: morado, icon: Icons.cancel_outlined, text: "Cancelada"),
+          _LegendItem(
+              color: rosa, icon: Icons.timer_off_outlined, text: "No asistió"),
         ],
       ),
     );
@@ -887,13 +713,15 @@ class _AdminHomeState extends State<AdminHome> {
     VoidCallback onPressed, {
     bool disabled = false,
   }) {
+    final colors = AppColors.of(context);
+
     return OutlinedButton.icon(
       onPressed: disabled ? null : onPressed,
       icon: Icon(icon, size: 16),
       label: Text(label),
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
-        disabledForegroundColor: Colors.white24,
+        disabledForegroundColor: colors.muted.withValues(alpha: .45),
         side: BorderSide(color: color.withValues(alpha: disabled ? .25 : .7)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         visualDensity: VisualDensity.compact,
@@ -903,15 +731,21 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _pacienteCard(Map<String, dynamic> paciente) {
+    final colors = AppColors.of(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: _box(),
       child: Row(
         children: [
-          const CircleAvatar(
-            backgroundColor: azulOscuro,
-            child: Icon(Icons.person, color: Colors.white),
+          CircleAvatar(
+            backgroundColor:
+                colors.isLight ? azul.withValues(alpha: .12) : azulOscuro,
+            child: Icon(
+              Icons.person,
+              color: colors.isLight ? azul : Colors.white,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -922,8 +756,8 @@ class _AdminHomeState extends State<AdminHome> {
                   paciente["nombre"]?.toString() ?? "Paciente",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -931,14 +765,14 @@ class _AdminHomeState extends State<AdminHome> {
                   paciente["email"]?.toString() ?? "",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: textoSuave, fontSize: 12),
+                  style: TextStyle(color: colors.muted, fontSize: 12),
                 ),
               ],
             ),
           ),
           Text(
             paciente["telefono"]?.toString() ?? "",
-            style: const TextStyle(color: textoSuave, fontSize: 12),
+            style: TextStyle(color: colors.muted, fontSize: 12),
           ),
         ],
       ),
@@ -946,6 +780,8 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _reportRow(String label, int value, Color color) {
+    final colors = AppColors.of(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
@@ -955,8 +791,8 @@ class _AdminHomeState extends State<AdminHome> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: colors.text,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -975,6 +811,7 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _chartCard() {
+    final colors = AppColors.of(context);
     final values = _monthlyCounts();
     final maxValue = values.isEmpty
         ? 1
@@ -986,10 +823,10 @@ class _AdminHomeState extends State<AdminHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "CITAS POR MES",
             style: TextStyle(
-              color: textoSuave,
+              color: colors.muted,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -1000,7 +837,8 @@ class _AdminHomeState extends State<AdminHome> {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: values.map((item) {
-                final height = maxValue == 0 ? 18.0 : 90 * item.value / maxValue;
+                final height =
+                    maxValue == 0 ? 18.0 : 90 * item.value / maxValue;
                 return _BarChartItem(
                   month: item.label,
                   value: "${item.value}",
@@ -1015,19 +853,21 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _serviceSelector() {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: fondo.withValues(alpha: .55),
+        color: colors.field.withValues(alpha: .85),
         borderRadius: BorderRadius.circular(16),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selectedService,
           isExpanded: true,
-          dropdownColor: panel,
-          iconEnabledColor: textoSuave,
-          style: const TextStyle(color: Colors.white),
+          dropdownColor: colors.panel,
+          iconEnabledColor: colors.muted,
+          style: TextStyle(color: colors.text),
           items: servicios
               .map((item) => DropdownMenuItem(value: item, child: Text(item)))
               .toList(),
@@ -1047,18 +887,20 @@ class _AdminHomeState extends State<AdminHome> {
     IconData icon, {
     int maxLines = 1,
   }) {
+    final colors = AppColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: colors.text),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: textoSuave),
-          prefixIcon: Icon(icon, color: textoSuave),
+          labelStyle: TextStyle(color: colors.muted),
+          prefixIcon: Icon(icon, color: colors.muted),
           filled: true,
-          fillColor: fondo.withValues(alpha: .55),
+          fillColor: colors.field.withValues(alpha: .85),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -1069,6 +911,8 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _pickerButton(IconData icon, String text, VoidCallback onTap) {
+    final colors = AppColors.of(context);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -1076,67 +920,18 @@ class _AdminHomeState extends State<AdminHome> {
         height: 50,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: fondo.withValues(alpha: .55),
+          color: colors.field.withValues(alpha: .85),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(icon, color: textoSuave, size: 18),
+            Icon(icon, color: colors.muted, size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 text,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _timeBlockButton(
-    String label,
-    String value,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        height: 74,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: fondo.withValues(alpha: .55),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: azul.withValues(alpha: .24)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: textoSuave, size: 21),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(color: textoSuave, fontSize: 12),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    value,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
+                style: TextStyle(color: colors.text),
               ),
             ),
           ],
@@ -1146,11 +941,14 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _bottomBar() {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-      decoration: const BoxDecoration(
-        color: Color(0xff061017),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      decoration: BoxDecoration(
+        color: colors.nav,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1173,11 +971,12 @@ class _AdminHomeState extends State<AdminHome> {
     bool isExit = false,
   }) {
     final active = selectedIndex == index;
+    final colors = AppColors.of(context);
     final color = isExit
         ? rojoSalir
         : active
             ? Colors.white
-            : Colors.white38;
+            : colors.muted.withValues(alpha: .72);
 
     return GestureDetector(
       onTap: () {
@@ -1275,28 +1074,47 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Widget _empty(String text) {
+    final colors = AppColors.of(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: _box(),
-      child: Text(text, style: const TextStyle(color: textoSuave)),
+      child: Text(text, style: TextStyle(color: colors.muted)),
     );
   }
 
   BoxDecoration _box() {
+    final colors = AppColors.of(context);
+
     return BoxDecoration(
-      color: panel,
+      color: colors.panel,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: Colors.white.withValues(alpha: .08)),
+      border: Border.all(color: colors.border),
+      boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
     );
   }
 
   Future<void> _pickDate() async {
+    final colors = AppColors.of(context);
+    final baseTheme = Theme.of(context);
     final picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: baseTheme.copyWith(
+            colorScheme: baseTheme.colorScheme.copyWith(
+              primary: azul,
+              surface: colors.panel,
+              onSurface: colors.text,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -1305,51 +1123,28 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Future<void> _pickTime() async {
+    final colors = AppColors.of(context);
+    final baseTheme = Theme.of(context);
     final picked = await showTimePicker(
       context: context,
       initialTime: selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: baseTheme.copyWith(
+            colorScheme: baseTheme.colorScheme.copyWith(
+              primary: azul,
+              surface: colors.panel,
+              onSurface: colors.text,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
       setState(() => selectedTime = picked);
     }
-  }
-
-  Future<void> _pickAvailabilityTime(bool isStart) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: isStart ? disponibilidadInicio : disponibilidadFin,
-    );
-
-    if (picked == null) return;
-
-    setState(() {
-      if (isStart) {
-        disponibilidadInicio = picked;
-      } else {
-        disponibilidadFin = picked;
-      }
-    });
-  }
-
-  void _agregarBloqueDisponibilidad() {
-    final inicioMinutes =
-        disponibilidadInicio.hour * 60 + disponibilidadInicio.minute;
-    final finMinutes = disponibilidadFin.hour * 60 + disponibilidadFin.minute;
-
-    if (finMinutes <= inicioMinutes) {
-      _msg("La hora final debe ser mayor a la inicial");
-      return;
-    }
-
-    setState(() {
-      disponibilidad.add({
-        "dia_semana": selectedDiaSemana,
-        "hora_inicio": _formatTime(disponibilidadInicio),
-        "hora_fin": _formatTime(disponibilidadFin),
-        "activo": true,
-      });
-    });
   }
 
   Color _estadoColor(CitaModel cita) {
@@ -1373,21 +1168,6 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   String _two(int value) => value.toString().padLeft(2, "0");
-
-  String _formatTime(TimeOfDay time) {
-    return "${_two(time.hour)}:${_two(time.minute)}";
-  }
-
-  String _diaNombre(int dia) {
-    const dias = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-    if (dia < 1 || dia > 7) return "Día";
-    return dias[dia - 1];
-  }
-
-  int _asInt(dynamic value) {
-    if (value is int) return value;
-    return int.tryParse(value.toString()) ?? 1;
-  }
 
   List<_MonthlyCount> _monthlyCounts() {
     final now = DateTime.now();
@@ -1481,6 +1261,8 @@ class _BarChartItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return SizedBox(
       width: 58,
       child: Column(
@@ -1488,8 +1270,8 @@ class _BarChartItem extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xff9FC7D3),
+            style: TextStyle(
+              color: colors.muted,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
@@ -1498,16 +1280,18 @@ class _BarChartItem extends StatelessWidget {
           Container(
             width: 58,
             height: height,
-            decoration: const BoxDecoration(
-              color: Color(0xff2F6F88),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            decoration: BoxDecoration(
+              color: colors.primary,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             month,
-            style: const TextStyle(
-              color: Color(0xff9FC7D3),
+            style: TextStyle(
+              color: colors.muted,
               fontSize: 11,
             ),
           ),

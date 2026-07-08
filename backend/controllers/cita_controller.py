@@ -68,6 +68,9 @@ def add_cita(data, usuario_id):
         servicio_id = _resolve_service_id(cur, servicio)
 
         if doctor_id:
+            if not _is_datetime_available(cur, doctor_id, fecha):
+                raise ValidationError("Horario fuera de disponibilidad")
+
             cur.execute("""
                 SELECT id
                 FROM citas
@@ -288,17 +291,27 @@ def get_pacientes():
     ]
 
 
-def get_disponibilidad():
+def get_disponibilidad(user=None, doctor_id=None):
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
-        SELECT d.id, d.doctor_id, d.dia_semana, d.hora_inicio, d.hora_fin, d.activo
+    params = []
+    where_clause = "WHERE o.activo = TRUE"
+
+    if user and user.get("rol") == "doctor":
+        doctor_id = _resolve_doctor_id(cur, None, user_id=user["id"])
+
+    if doctor_id:
+        where_clause += " AND d.doctor_id = %s"
+        params.append(doctor_id)
+
+    cur.execute(f"""
+        SELECT d.id, d.doctor_id, d.fecha, d.dia_semana, d.hora_inicio, d.hora_fin, d.activo
         FROM disponibilidad_odontologos d
         JOIN odontologos o ON o.id = d.doctor_id
-        WHERE o.activo = TRUE
-        ORDER BY d.dia_semana ASC, d.hora_inicio ASC
-    """)
+        {where_clause}
+        ORDER BY d.fecha NULLS LAST, d.dia_semana ASC, d.hora_inicio ASC
+    """, params)
 
     rows = cur.fetchall()
     cur.close()
@@ -327,8 +340,12 @@ def replace_disponibilidad(data, user=None):
             (doctor_id,),
         )
 
+        scopes = {}
+
         for bloque in bloques:
-            dia = int(bloque.get("dia_semana"))
+            fecha = _parse_optional_date(bloque.get("fecha"))
+            dia_value = bloque.get("dia_semana")
+            dia = fecha.weekday() + 1 if fecha else int(dia_value)
             inicio = _parse_time(bloque.get("hora_inicio"))
             fin = _parse_time(bloque.get("hora_fin"))
             activo = bool(bloque.get("activo", True))
@@ -338,17 +355,21 @@ def replace_disponibilidad(data, user=None):
             if fin <= inicio:
                 raise ValidationError("La hora fin debe ser mayor a la hora inicio")
 
+            scope = fecha.isoformat() if fecha else f"semanal:{dia}"
+            for existing_inicio, existing_fin in scopes.setdefault(scope, []):
+                if max(inicio, existing_inicio) < min(fin, existing_fin):
+                    raise ValidationError("Los bloques de horario no deben cruzarse")
+            scopes[scope].append((inicio, fin))
+
             cur.execute("""
                 INSERT INTO disponibilidad_odontologos(
-                    doctor_id, dia_semana, hora_inicio, hora_fin, activo
+                    doctor_id, fecha, dia_semana, hora_inicio, hora_fin, activo
                 )
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (doctor_id, dia_semana, hora_inicio, hora_fin)
-                DO UPDATE SET activo = EXCLUDED.activo
-            """, (doctor_id, dia, inicio, fin, activo))
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (doctor_id, fecha, dia, inicio, fin, activo))
 
         conn.commit()
-        return get_disponibilidad()
+        return get_disponibilidad(user=user, doctor_id=doctor_id)
     except Exception:
         conn.rollback()
         raise
@@ -368,15 +389,7 @@ def get_horas_disponibles(fecha_text, doctor_id=None, intervalo=30):
         if not resolved_doctor_id:
             raise ValidationError("Doctor no encontrado")
 
-        dia_semana = fecha.weekday() + 1
-
-        cur.execute("""
-            SELECT hora_inicio, hora_fin
-            FROM disponibilidad_odontologos
-            WHERE doctor_id = %s AND dia_semana = %s AND activo = TRUE
-            ORDER BY hora_inicio ASC
-        """, (resolved_doctor_id, dia_semana))
-        bloques = cur.fetchall()
+        bloques = _get_availability_blocks(cur, resolved_doctor_id, fecha)
 
         cur.execute("""
             SELECT fecha
@@ -406,11 +419,42 @@ def get_horas_disponibles(fecha_text, doctor_id=None, intervalo=30):
         return {
             "doctor_id": resolved_doctor_id,
             "fecha": fecha.date().isoformat(),
-            "horas": horas,
+            "horas": sorted(set(horas)),
         }
     finally:
         cur.close()
         conn.close()
+
+
+def _get_availability_blocks(cur, doctor_id, fecha):
+    dia_semana = fecha.weekday() + 1
+
+    cur.execute("""
+        SELECT hora_inicio, hora_fin
+        FROM disponibilidad_odontologos
+        WHERE doctor_id = %s AND fecha = %s AND activo = TRUE
+        ORDER BY hora_inicio ASC
+    """, (doctor_id, fecha.date()))
+    bloques = cur.fetchall()
+
+    if bloques:
+        return bloques
+
+    cur.execute("""
+            SELECT hora_inicio, hora_fin
+            FROM disponibilidad_odontologos
+            WHERE doctor_id = %s
+              AND fecha IS NULL
+              AND dia_semana = %s
+              AND activo = TRUE
+            ORDER BY hora_inicio ASC
+    """, (doctor_id, dia_semana))
+    return cur.fetchall()
+
+
+def _is_datetime_available(cur, doctor_id, fecha):
+    hora = fecha.time()
+    return any(inicio <= hora < fin for inicio, fin in _get_availability_blocks(cur, doctor_id, fecha))
 
 
 def delete_cita(id):
@@ -450,10 +494,11 @@ def _format_disponibilidad(row):
     return {
         "id": row[0],
         "doctor_id": row[1],
-        "dia_semana": row[2],
-        "hora_inicio": row[3].strftime("%H:%M") if hasattr(row[3], "strftime") else str(row[3])[:5],
-        "hora_fin": row[4].strftime("%H:%M") if hasattr(row[4], "strftime") else str(row[4])[:5],
-        "activo": row[5],
+        "fecha": row[2].isoformat() if row[2] else None,
+        "dia_semana": row[3],
+        "hora_inicio": row[4].strftime("%H:%M") if hasattr(row[4], "strftime") else str(row[4])[:5],
+        "hora_fin": row[5].strftime("%H:%M") if hasattr(row[5], "strftime") else str(row[5])[:5],
+        "activo": row[6],
     }
 
 
@@ -487,6 +532,13 @@ def _parse_date(value):
             return datetime.strptime(str(value), "%Y-%m-%d")
         except ValueError:
             raise ValidationError("Fecha inválida") from exc
+
+
+def _parse_optional_date(value):
+    if not value:
+        return None
+
+    return _parse_date(value).date()
 
 
 def _parse_time(value):

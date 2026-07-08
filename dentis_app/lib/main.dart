@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/theme/app_theme.dart';
 import 'data/datasources/session_datasource.dart';
 import 'screens/home_admin.dart';
 import 'screens/home_doctor.dart';
@@ -11,6 +12,7 @@ import 'services/notification_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.init();
+  await AppThemeController.load();
   await SessionDataSource.loadSession();
   runApp(const DentisApp());
 }
@@ -20,14 +22,18 @@ class DentisApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'SmartTooth',
-      theme: ThemeData(
-        scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Arial',
-      ),
-      home: _initialHome(),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppThemeController.lightMode,
+      builder: (context, lightMode, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'SmartTooth',
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: lightMode ? ThemeMode.light : ThemeMode.dark,
+          home: _initialHome(),
+        );
+      },
     );
   }
 

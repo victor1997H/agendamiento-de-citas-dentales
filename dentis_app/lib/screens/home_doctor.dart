@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
 import '../data/datasources/session_datasource.dart';
 import '../data/models/cita_model.dart';
 import '../data/repositories/doctor_repository.dart';
+import '../widgets/availability_manager.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
 
@@ -31,12 +33,9 @@ class _DoctorHomeState extends State<DoctorHome> {
     "este_mes": 0,
   };
 
-  static const Color fondo = Color(0xff08151B);
-  static const Color panel = Color(0xff18323B);
   static const Color verde = Color(0xff2DB58D);
   static const Color verdeOscuro = Color(0xff1C9B78);
-  static const Color textoSuave = Color(0xff9FC7D3);
-  static const Color rojoSalir = Color(0xffD95B6A);
+  static const Color rojoSalir = AppTheme.danger;
 
   @override
   void initState() {
@@ -101,23 +100,27 @@ class _DoctorHomeState extends State<DoctorHome> {
   @override
   Widget build(BuildContext context) {
     final nombre = widget.user["nombre"] ?? "Doctor";
+    final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: fondo,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: RefreshIndicator(
                 onRefresh: cargar,
+                color: verde,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                  child: selectedIndex == 2
-                      ? _pacientesView()
-                      : selectedIndex == 1
-                          ? _agendaView()
-                          : _panelView(nombre),
+                  child: selectedIndex == 3
+                      ? AvailabilityManager(doctorName: nombre)
+                      : selectedIndex == 2
+                          ? _pacientesView()
+                          : selectedIndex == 1
+                              ? _agendaView()
+                              : _panelView(nombre),
                 ),
               ),
             ),
@@ -129,6 +132,8 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _panelView(String nombre) {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -155,10 +160,10 @@ class _DoctorHomeState extends State<DoctorHome> {
           ],
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           "Agenda de hoy",
           style: TextStyle(
-            color: Colors.white,
+            color: colors.text,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -170,21 +175,23 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _agendaView() {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Agenda",
           style: TextStyle(
-            color: Colors.white,
+            color: colors.text,
             fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           "Gestiona las citas de hoy",
-          style: TextStyle(color: textoSuave, fontSize: 15),
+          style: TextStyle(color: colors.muted, fontSize: 15),
         ),
         const SizedBox(height: 18),
         _agendaList(showActions: true),
@@ -193,26 +200,28 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _pacientesView() {
+    final colors = AppColors.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Pacientes",
           style: TextStyle(
-            color: Colors.white,
+            color: colors.text,
             fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 18),
         if (loading)
-          const Center(
-            child: CircularProgressIndicator(color: Colors.white),
+          Center(
+            child: CircularProgressIndicator(color: colors.primary),
           )
         else if (pacientes.isEmpty)
-          const Text(
+          Text(
             "No hay pacientes registrados",
-            style: TextStyle(color: textoSuave),
+            style: TextStyle(color: colors.muted),
           )
         else
           ...pacientes.map(_pacienteCard),
@@ -221,6 +230,8 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _header(String nombre) {
+    final colors = AppColors.of(context);
+
     return Row(
       children: [
         Expanded(
@@ -240,8 +251,8 @@ class _DoctorHomeState extends State<DoctorHome> {
                 nombre,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colors.text,
                   fontSize: 30,
                   fontWeight: FontWeight.bold,
                 ),
@@ -286,7 +297,7 @@ class _DoctorHomeState extends State<DoctorHome> {
                 Icons.monitor_heart_outlined,
                 "${resumen["citas_hoy"]} citas hoy",
               ),
-              _pill(Icons.access_time, "08:00 - 17:00"),
+              _pill(Icons.access_time, "Horario editable"),
             ],
           ),
         ],
@@ -295,6 +306,8 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _stat(String title, dynamic value, IconData icon, Color color) {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _box(),
@@ -308,8 +321,8 @@ class _DoctorHomeState extends State<DoctorHome> {
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textoSuave,
+                  style: TextStyle(
+                    color: colors.muted,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
@@ -335,9 +348,11 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _agendaList({required bool showActions}) {
+    final colors = AppColors.of(context);
+
     if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+      return Center(
+        child: CircularProgressIndicator(color: colors.primary),
       );
     }
 
@@ -346,9 +361,9 @@ class _DoctorHomeState extends State<DoctorHome> {
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: _box(),
-        child: const Text(
+        child: Text(
           "No hay citas para hoy",
-          style: TextStyle(color: textoSuave),
+          style: TextStyle(color: colors.muted),
         ),
       );
     }
@@ -362,6 +377,7 @@ class _DoctorHomeState extends State<DoctorHome> {
 
   Widget _citaCard(CitaModel cita, bool showActions) {
     final color = _estadoColor(cita);
+    final colors = AppColors.of(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -375,12 +391,14 @@ class _DoctorHomeState extends State<DoctorHome> {
                 width: 54,
                 height: 54,
                 decoration: BoxDecoration(
-                  color: const Color(0xff1F4F63),
+                  color: colors.isLight
+                      ? colors.primary.withValues(alpha: .12)
+                      : AppTheme.primaryDark,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.medical_services,
-                  color: Colors.white,
+                  color: colors.isLight ? colors.primary : Colors.white,
                 ),
               ),
               const SizedBox(width: 12),
@@ -392,8 +410,8 @@ class _DoctorHomeState extends State<DoctorHome> {
                       cita.paciente.isEmpty ? "Paciente" : cita.paciente,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: colors.text,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -447,15 +465,22 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _pacienteCard(Map<String, dynamic> paciente) {
+    final colors = AppColors.of(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: _box(),
       child: Row(
         children: [
-          const CircleAvatar(
-            backgroundColor: Color(0xff1F4F63),
-            child: Icon(Icons.person, color: Colors.white),
+          CircleAvatar(
+            backgroundColor: colors.isLight
+                ? colors.primary.withValues(alpha: .12)
+                : AppTheme.primaryDark,
+            child: Icon(
+              Icons.person,
+              color: colors.isLight ? colors.primary : Colors.white,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -466,8 +491,8 @@ class _DoctorHomeState extends State<DoctorHome> {
                   paciente["nombre"]?.toString() ?? "Paciente",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -476,14 +501,14 @@ class _DoctorHomeState extends State<DoctorHome> {
                   paciente["email"]?.toString() ?? "",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: textoSuave),
+                  style: TextStyle(color: colors.muted),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   paciente["telefono"]?.toString() ?? "",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: textoSuave),
+                  style: TextStyle(color: colors.muted),
                 ),
               ],
             ),
@@ -494,13 +519,16 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _bottomBar() {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      decoration: const BoxDecoration(
-        color: Color(0xff061017),
-        borderRadius: BorderRadius.vertical(
+      decoration: BoxDecoration(
+        color: colors.nav,
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(25),
         ),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -508,7 +536,8 @@ class _DoctorHomeState extends State<DoctorHome> {
           _nav(Icons.grid_view_rounded, "Panel", 0),
           _nav(Icons.calendar_today_outlined, "Agenda", 1),
           _nav(Icons.people_outline, "Pacientes", 2),
-          _nav(Icons.logout, "Salir", 3, isExit: true),
+          _nav(Icons.event_available_outlined, "Horario", 3),
+          _nav(Icons.logout, "Salir", 4, isExit: true),
         ],
       ),
     );
@@ -521,11 +550,12 @@ class _DoctorHomeState extends State<DoctorHome> {
     bool isExit = false,
   }) {
     final active = selectedIndex == index;
+    final colors = AppColors.of(context);
     final color = isExit
         ? rojoSalir
         : active
             ? Colors.white
-            : Colors.white38;
+            : colors.muted.withValues(alpha: .75);
 
     return GestureDetector(
       onTap: () {
@@ -539,7 +569,7 @@ class _DoctorHomeState extends State<DoctorHome> {
         });
       },
       child: SizedBox(
-        width: 78,
+        width: 64,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -559,7 +589,7 @@ class _DoctorHomeState extends State<DoctorHome> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: color,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -570,13 +600,15 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   Widget _action(String text, VoidCallback onTap) {
+    final colors = AppColors.of(context);
+
     return SizedBox(
       height: 38,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          side: BorderSide(color: Colors.white.withValues(alpha: .18)),
+          foregroundColor: colors.text,
+          side: BorderSide(color: colors.border),
           padding: const EdgeInsets.symmetric(horizontal: 10),
         ),
         child: Text(
@@ -659,10 +691,13 @@ class _DoctorHomeState extends State<DoctorHome> {
   }
 
   BoxDecoration _box() {
+    final colors = AppColors.of(context);
+
     return BoxDecoration(
-      color: panel,
+      color: colors.panel,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: Colors.white.withValues(alpha: .08)),
+      border: Border.all(color: colors.border),
+      boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
     );
   }
 }

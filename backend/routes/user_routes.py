@@ -29,8 +29,8 @@ def validate_password(password):
         return "La contraseña debe incluir una mayúscula"
     if not re.search(r"[a-z]", password):
         return "La contraseña debe incluir una minúscula"
-    if not re.search(r"[0-9]", password):
-        return "La contraseña debe incluir un número"
+    if "." not in password:
+        return "La contraseña debe incluir un punto"
     return None
 
 
@@ -211,6 +211,8 @@ def update_profile():
 # ================= FORGOT PASSWORD =================
 @user_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
+    public_message = "Si el correo está registrado, enviaremos un código de recuperación."
+
     try:
         data = request.get_json()
 
@@ -232,26 +234,28 @@ def forgot_password():
         if not user:
             return jsonify({
                 "success": True,
-                "message": "Si el correo está registrado, recibirás un código de seguridad"
+                "message": public_message
             }), 200
 
         code = create_password_reset_code(email)
         if not code:
+            print(f"RESET CODE NOT CREATED: {email}")
             return jsonify({
-                "success": False,
-                "message": "No se pudo generar el código de seguridad"
-            }), 500
+                "success": True,
+                "message": public_message
+            }), 200
 
         sent = send_password_reset_code(email, code)
         if not sent:
+            print(f"RESET EMAIL NOT SENT: {email}")
             return jsonify({
-                "success": False,
-                "message": "No se pudo enviar el código al correo registrado"
-            }), 503
+                "success": True,
+                "message": public_message
+            }), 200
 
         return jsonify({
             "success": True,
-            "message": "Código enviado al correo registrado"
+            "message": public_message
         }), 200
 
     except Exception as e:
@@ -287,13 +291,13 @@ def verify_reset_code():
         if not reset_token:
             return jsonify({
                 "success": False,
-                "message": "Código incorrecto o vencido"
+                "message": "Código inválido o expirado."
             }), 401
 
         return jsonify({
             "success": True,
             "reset_token": reset_token,
-            "message": "Código verificado"
+            "message": "Código verificado correctamente."
         }), 200
 
     except Exception as e:
@@ -318,12 +322,19 @@ def reset_password():
 
         email = (data.get("email") or "").strip().lower()
         new_password = data.get("new_password")
+        code = re.sub(r"\D", "", data.get("code") or "")
         reset_token = data.get("reset_token") or ""
 
-        if not EMAIL_RE.match(email) or not new_password or not reset_token:
+        if not EMAIL_RE.match(email) or not new_password or not (code or reset_token):
             return jsonify({
                 "success": False,
-                "message": "Código verificado y nueva contraseña son requeridos"
+                "message": "Código y nueva contraseña son requeridos"
+            }), 400
+
+        if code and len(code) != 6:
+            return jsonify({
+                "success": False,
+                "message": "Código inválido o expirado."
             }), 400
 
         password_error = validate_password(new_password)
@@ -333,17 +344,22 @@ def reset_password():
                 "message": password_error
             }), 400
 
-        ok = reset_password_user(email, new_password, reset_token)
+        ok = reset_password_user(
+            email,
+            new_password,
+            reset_token=reset_token or None,
+            code=code or None,
+        )
 
         if ok:
             return jsonify({
                 "success": True,
-                "message": "Contraseña actualizada correctamente"
+                "message": "Contraseña actualizada correctamente."
             }), 200
 
         return jsonify({
             "success": False,
-            "message": "La verificación expiró. Solicita un nuevo código"
+            "message": "Código inválido o expirado."
         }), 401
 
     except Exception as e:

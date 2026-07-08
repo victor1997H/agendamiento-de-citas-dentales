@@ -189,8 +189,11 @@ def update_profile_user(user_id, data):
 
 
 def _format_user(user):
+    rol = user[5]
     perfil_completo = True
-    if user[5] in ("admin", "doctor"):
+    especialidad = user[6] if rol in ("admin", "doctor") else None
+
+    if rol in ("admin", "doctor"):
         perfil_completo = not (
             user[2] == DEFAULT_DOCTOR_EMAIL
             or user[3] == DEFAULT_DOCTOR_PHONE
@@ -202,8 +205,8 @@ def _format_user(user):
         "nombre": user[1],
         "email": user[2],
         "telefono": user[3],
-        "rol": user[5],
-        "especialidad": user[6],
+        "rol": rol,
+        "especialidad": especialidad,
         "perfil_completo": perfil_completo,
     }
 
@@ -398,7 +401,7 @@ def verify_password_reset_code(email, code):
 
 
 # ================= RESET PASSWORD =================
-def reset_password_user(email, new_password, reset_token=None):
+def reset_password_user(email, new_password, reset_token=None, code=None):
     conn = get_connection()
     if not conn:
         return False
@@ -408,33 +411,68 @@ def reset_password_user(email, new_password, reset_token=None):
         cursor = conn.cursor()
         _ensure_password_reset_table(cursor)
 
-        if not reset_token:
+        if not reset_token and not code:
             return False
 
-        cursor.execute("""
-            SELECT prc.id, prc.token_expires_at
-            FROM password_reset_codes prc
-            INNER JOIN usuarios u ON u.id = prc.user_id
-            WHERE u.email=%s
-              AND prc.reset_token_hash=%s
-              AND prc.used_at IS NULL
-            ORDER BY prc.created_at DESC
-            LIMIT 1
-            FOR UPDATE
-        """, (email, _hash_secret(reset_token)))
+        if reset_token:
+            cursor.execute("""
+                SELECT prc.id, prc.token_expires_at
+                FROM password_reset_codes prc
+                INNER JOIN usuarios u ON u.id = prc.user_id
+                WHERE u.email=%s
+                  AND prc.reset_token_hash=%s
+                  AND prc.used_at IS NULL
+                ORDER BY prc.created_at DESC
+                LIMIT 1
+                FOR UPDATE
+            """, (email, _hash_secret(reset_token)))
+        else:
+            cursor.execute("""
+                SELECT prc.id, prc.expires_at, prc.code_hash, prc.attempts
+                FROM password_reset_codes prc
+                INNER JOIN usuarios u ON u.id = prc.user_id
+                WHERE u.email=%s
+                  AND prc.used_at IS NULL
+                ORDER BY prc.created_at DESC
+                LIMIT 1
+                FOR UPDATE
+            """, (email,))
 
         reset_row = cursor.fetchone()
         if not reset_row:
             conn.rollback()
             return False
 
-        reset_id, token_expires_at = reset_row
-        if _is_expired(token_expires_at):
-            cursor.execute("""
-                UPDATE password_reset_codes
-                SET used_at=NOW()
-                WHERE id=%s
-            """, (reset_id,))
+        if reset_token:
+            reset_id, expires_at = reset_row
+            invalid_code = _is_expired(expires_at)
+            should_mark_used = invalid_code
+        else:
+            reset_id, expires_at, code_hash, attempts = reset_row
+            code_matches = hmac.compare_digest(code_hash, _hash_secret(code))
+            invalid_code = (
+                _is_expired(expires_at)
+                or attempts >= MAX_RESET_ATTEMPTS
+                or not code_matches
+            )
+            should_mark_used = _is_expired(expires_at) or attempts >= MAX_RESET_ATTEMPTS
+
+            if not code_matches and attempts < MAX_RESET_ATTEMPTS:
+                next_attempts = attempts + 1
+                cursor.execute("""
+                    UPDATE password_reset_codes
+                    SET attempts=attempts + 1
+                    WHERE id=%s
+                """, (reset_id,))
+                should_mark_used = next_attempts >= MAX_RESET_ATTEMPTS
+
+        if invalid_code:
+            if should_mark_used:
+                cursor.execute("""
+                    UPDATE password_reset_codes
+                    SET used_at=NOW()
+                    WHERE id=%s
+                """, (reset_id,))
             conn.commit()
             return False
 
@@ -451,6 +489,7 @@ def reset_password_user(email, new_password, reset_token=None):
             hashed_password,
             email
         ))
+        updated = cursor.rowcount
 
         cursor.execute("""
             UPDATE password_reset_codes
@@ -459,8 +498,6 @@ def reset_password_user(email, new_password, reset_token=None):
         """, (reset_id,))
 
         conn.commit()
-
-        updated = cursor.rowcount
 
         return updated > 0
 

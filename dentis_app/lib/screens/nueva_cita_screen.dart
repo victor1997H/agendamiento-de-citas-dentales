@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
 import '../data/models/cita_model.dart';
 import '../data/repositories/cita_repository.dart';
 import '../services/notification_service.dart';
@@ -34,10 +35,7 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
     "Consulta Dental",
   ];
 
-  static const fondo = Color(0xff08151B);
-  static const panel = Color(0xff18323B);
-  static const azul = Color(0xff2F6F88);
-  static const textoSuave = Color(0xff9FC7D3);
+  static const azul = AppTheme.primary;
 
   @override
   void initState() {
@@ -61,11 +59,25 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   }
 
   Future<void> elegirFecha() async {
+    final colors = AppColors.of(context);
+    final baseTheme = Theme.of(context);
     final selected = await showDatePicker(
       context: context,
       initialDate: fecha,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: baseTheme.copyWith(
+            colorScheme: baseTheme.colorScheme.copyWith(
+              primary: azul,
+              surface: colors.panel,
+              onSurface: colors.text,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (selected != null) {
@@ -173,12 +185,14 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Scaffold(
-      backgroundColor: fondo,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text("Nueva cita"),
-        backgroundColor: fondo,
-        foregroundColor: Colors.white,
+        backgroundColor: colors.background,
+        foregroundColor: colors.text,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -208,12 +222,12 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
               controller: notasController,
               minLines: 3,
               maxLines: 5,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: colors.text),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: panel,
+                fillColor: colors.panel,
                 hintText: "Detalle opcional",
-                hintStyle: const TextStyle(color: textoSuave),
+                hintStyle: TextStyle(color: colors.muted),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
                   borderSide: BorderSide.none,
@@ -248,10 +262,12 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   }
 
   Widget _sectionTitle(String text) {
+    final colors = AppColors.of(context);
+
     return Text(
       text,
-      style: const TextStyle(
-        color: textoSuave,
+      style: TextStyle(
+        color: colors.muted,
         fontWeight: FontWeight.bold,
       ),
     );
@@ -307,6 +323,7 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   }
 
   Widget _diasPanel() {
+    final colors = AppColors.of(context);
     final dias = List.generate(7, (index) {
       final now = DateTime.now();
       return DateTime(now.year, now.month, now.day + index);
@@ -316,17 +333,18 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: panel,
+        color: colors.panel,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: .08)),
+        border: Border.all(color: colors.border),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Toca un día con horarios disponibles",
             style: TextStyle(
-              color: textoSuave,
+              color: colors.muted,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
@@ -363,15 +381,15 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
                         color: selected
                             ? azul
                             : available
-                                ? fondo.withValues(alpha: .55)
-                                : Colors.white.withValues(alpha: .07),
+                                ? colors.field.withValues(alpha: .85)
+                                : colors.field.withValues(alpha: .45),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: selected
                               ? azul
                               : available
-                                  ? textoSuave.withValues(alpha: .24)
-                                  : Colors.white.withValues(alpha: .10),
+                                  ? colors.primary.withValues(alpha: .22)
+                                  : colors.border,
                         ),
                       ),
                       child: Column(
@@ -382,8 +400,8 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
                               color: selected
                                   ? Colors.white
                                   : available
-                                      ? textoSuave
-                                      : Colors.white30,
+                                      ? colors.muted
+                                      : colors.muted.withValues(alpha: .45),
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -395,8 +413,8 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
                               color: selected
                                   ? Colors.white
                                   : available
-                                      ? Colors.white70
-                                      : Colors.white30,
+                                      ? colors.text
+                                      : colors.muted.withValues(alpha: .45),
                               fontSize: 21,
                               fontWeight: FontWeight.bold,
                             ),
@@ -414,8 +432,8 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
                               color: selected
                                   ? Colors.white
                                   : available
-                                      ? textoSuave
-                                      : Colors.white30,
+                                      ? colors.muted
+                                      : colors.muted.withValues(alpha: .45),
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -436,23 +454,23 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: fondo.withValues(alpha: .45),
+                color: colors.field.withValues(alpha: .8),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_month, color: textoSuave, size: 18),
+                  Icon(Icons.calendar_month, color: colors.primary, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       "Buscar otra fecha: $fechaTexto",
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: colors.text,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: textoSuave),
+                  Icon(Icons.chevron_right, color: colors.muted),
                 ],
               ),
             ),
@@ -463,11 +481,13 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   }
 
   Widget _horasPanel() {
+    final colors = AppColors.of(context);
+
     if (cargandoHoras) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(16),
-          child: CircularProgressIndicator(color: Colors.white),
+          padding: const EdgeInsets.all(16),
+          child: CircularProgressIndicator(color: colors.primary),
         ),
       );
     }
@@ -476,11 +496,15 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
-        decoration:
-            BoxDecoration(color: panel, borderRadius: BorderRadius.circular(15)),
-        child: const Text(
+        decoration: BoxDecoration(
+          color: colors.panel,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: colors.border),
+          boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
+        ),
+        child: Text(
           "No hay horas disponibles para este día",
-          style: TextStyle(color: textoSuave),
+          style: TextStyle(color: colors.muted),
         ),
       );
     }
@@ -489,9 +513,10 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: panel,
+        color: colors.panel,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: .08)),
+        border: Border.all(color: colors.border),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: Wrap(
         spacing: 10,
@@ -503,21 +528,21 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
             avatar: Icon(
               Icons.schedule,
               size: 16,
-              color: selected ? Colors.white : textoSuave,
+              color: selected ? Colors.white : colors.primary,
             ),
             label: Text(hora),
             selected: selected,
             selectedColor: azul,
-            backgroundColor: fondo.withValues(alpha: .55),
+            backgroundColor: colors.field.withValues(alpha: .85),
             side: BorderSide(
-              color: selected ? azul : textoSuave.withValues(alpha: .28),
+              color: selected ? azul : colors.primary.withValues(alpha: .28),
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             labelStyle: TextStyle(
-              color: selected ? Colors.white : textoSuave,
+              color: selected ? Colors.white : colors.muted,
               fontWeight: FontWeight.bold,
             ),
             onSelected: (_) => setState(() => horaSeleccionada = hora),
@@ -528,13 +553,16 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   }
 
   Widget _serviciosPanel() {
+    final colors = AppColors.of(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: panel,
+        color: colors.panel,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: .08)),
+        border: Border.all(color: colors.border),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: Wrap(
         spacing: 10,
@@ -546,21 +574,21 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
             avatar: Icon(
               Icons.medical_services_outlined,
               size: 16,
-              color: selected ? Colors.white : textoSuave,
+              color: selected ? Colors.white : colors.primary,
             ),
             label: Text(item),
             selected: selected,
             selectedColor: azul,
-            backgroundColor: fondo.withValues(alpha: .55),
+            backgroundColor: colors.field.withValues(alpha: .85),
             side: BorderSide(
-              color: selected ? azul : textoSuave.withValues(alpha: .28),
+              color: selected ? azul : colors.primary.withValues(alpha: .28),
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             labelStyle: TextStyle(
-              color: selected ? Colors.white : textoSuave,
+              color: selected ? Colors.white : colors.muted,
               fontWeight: FontWeight.bold,
             ),
             onSelected: (_) => setState(() => servicio = item),
@@ -571,17 +599,29 @@ class _NuevaCitaScreenState extends State<NuevaCitaScreen> {
   }
 
   Widget _info(String title, String value, IconData icon) {
+    final colors = AppColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration:
-          BoxDecoration(color: panel, borderRadius: BorderRadius.circular(15)),
+      decoration: BoxDecoration(
+        color: colors.panel,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: colors.border),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
+      ),
       child: Row(
         children: [
-          Icon(icon, color: textoSuave),
+          Icon(icon, color: colors.primary),
           const SizedBox(width: 10),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: colors.text,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );

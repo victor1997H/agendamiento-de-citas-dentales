@@ -59,7 +59,7 @@ class ApiClient {
     return response.statusCode == 200;
   }
 
-  static Future<String?> verifyResetCode(
+  static Future<bool> verifyResetCode(
     String email,
     String code,
   ) async {
@@ -74,18 +74,13 @@ class ApiClient {
       }),
     );
 
-    if (response.statusCode != 200) {
-      return null;
-    }
-
-    final body = jsonDecode(response.body);
-    return body["reset_token"]?.toString();
+    return response.statusCode == 200;
   }
 
   // ================= RESET PASSWORD =================
   static Future<bool> resetPassword(
     String email,
-    String resetToken,
+    String code,
     String newPassword,
   ) async {
     final response = await http.post(
@@ -95,7 +90,7 @@ class ApiClient {
       },
       body: jsonEncode({
         "email": email,
-        "reset_token": resetToken,
+        "code": code,
         "new_password": newPassword,
       }),
     );

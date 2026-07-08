@@ -77,12 +77,30 @@ ALTER TABLE citas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT
 CREATE TABLE IF NOT EXISTS disponibilidad_odontologos (
     id SERIAL PRIMARY KEY,
     doctor_id BIGINT NOT NULL REFERENCES odontologos(id) ON DELETE CASCADE,
-    dia_semana INTEGER NOT NULL CHECK (dia_semana BETWEEN 0 AND 6),
+    fecha DATE,
+    dia_semana INTEGER NOT NULL CHECK (dia_semana BETWEEN 1 AND 7),
     hora_inicio TIME NOT NULL,
     hora_fin TIME NOT NULL,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
-    UNIQUE (doctor_id, dia_semana, hora_inicio, hora_fin)
+    CONSTRAINT chk_disponibilidad_horas CHECK (hora_fin > hora_inicio)
 );
+
+ALTER TABLE disponibilidad_odontologos ADD COLUMN IF NOT EXISTS fecha DATE;
+UPDATE disponibilidad_odontologos SET dia_semana = 7 WHERE dia_semana = 0;
+ALTER TABLE disponibilidad_odontologos DROP CONSTRAINT IF EXISTS disponibilidad_odontologos_dia_semana_check;
+ALTER TABLE disponibilidad_odontologos DROP CONSTRAINT IF EXISTS chk_disponibilidad_dia_semana;
+ALTER TABLE disponibilidad_odontologos
+    ADD CONSTRAINT chk_disponibilidad_dia_semana CHECK (dia_semana BETWEEN 1 AND 7);
+ALTER TABLE disponibilidad_odontologos DROP CONSTRAINT IF EXISTS disponibilidad_odontologos_doctor_id_dia_semana_hora_inicio_hora_fin_key;
+ALTER TABLE disponibilidad_odontologos DROP CONSTRAINT IF EXISTS uq_disponibilidad_bloque;
+DROP INDEX IF EXISTS ux_disponibilidad_fecha_bloque;
+DROP INDEX IF EXISTS ux_disponibilidad_semanal_bloque;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_disponibilidad_fecha_bloque
+ON disponibilidad_odontologos(doctor_id, fecha, hora_inicio, hora_fin)
+WHERE fecha IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_disponibilidad_semanal_bloque
+ON disponibilidad_odontologos(doctor_id, dia_semana, hora_inicio, hora_fin)
+WHERE fecha IS NULL;
 
 CREATE TABLE IF NOT EXISTS notificaciones (
     id SERIAL PRIMARY KEY,

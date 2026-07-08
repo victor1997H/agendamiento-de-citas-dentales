@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
 import '../data/datasources/session_datasource.dart';
 import '../data/repositories/usuario_repository.dart';
 import 'home_admin.dart';
 import 'home_doctor.dart';
+import 'home_user.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -28,10 +30,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool loading = false;
   bool obscurePassword = true;
 
-  static const fondo = Color(0xff08151B);
-  static const panel = Color(0xff18323B);
-  static const azul = Color(0xff2F6F88);
-  static const textoSuave = Color(0xff9FC7D3);
+  static const azul = AppTheme.primary;
+
+  bool get isDoctorProfile {
+    final role = widget.user["rol"]?.toString() ?? "usuario";
+    return role == "doctor" || role == "admin";
+  }
 
   @override
   void initState() {
@@ -39,8 +43,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     nombreController.text = widget.user["nombre"]?.toString() ?? "";
     emailController.text = widget.user["email"]?.toString() ?? "";
     telefonoController.text = widget.user["telefono"]?.toString() ?? "";
-    especialidadController.text =
-        widget.user["especialidad"]?.toString() ?? "Odontólogo General";
+    if (isDoctorProfile) {
+      especialidadController.text =
+          widget.user["especialidad"]?.toString() ?? "Odontólogo General";
+    }
   }
 
   @override
@@ -57,7 +63,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final nombre = nombreController.text.trim();
     final email = emailController.text.trim().toLowerCase();
     final telefono = telefonoController.text.trim();
-    final especialidad = especialidadController.text.trim();
     final password = passwordController.text.trim();
 
     if (nombre.isEmpty || email.isEmpty || telefono.isEmpty) {
@@ -67,13 +72,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
     setState(() => loading = true);
 
-    final res = await repository.actualizarPerfil({
+    final data = {
       "nombre": nombre,
       "email": email,
       "telefono": telefono,
-      "especialidad": especialidad.isEmpty ? "Odontólogo General" : especialidad,
       if (password.isNotEmpty) "password": password,
-    });
+    };
+
+    if (isDoctorProfile) {
+      final especialidad = especialidadController.text.trim();
+      data["especialidad"] =
+          especialidad.isEmpty ? "Odontólogo General" : especialidad;
+    }
+
+    final res = await repository.actualizarPerfil(data);
 
     if (!mounted) return;
 
@@ -92,9 +104,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
     if (!mounted) return;
 
-    final page = user["rol"] == "doctor"
-        ? DoctorHome(user: user)
-        : AdminHome(user: user);
+    final role = user["rol"]?.toString() ?? "usuario";
+    final Widget page;
+    if (role == "admin") {
+      page = AdminHome(user: user);
+    } else if (role == "doctor") {
+      page = DoctorHome(user: user);
+    } else {
+      page = UserHome(user: user);
+    }
 
     Navigator.pushReplacement(
       context,
@@ -110,8 +128,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final title = isDoctorProfile ? "Completa tu perfil" : "Edita tu perfil";
+    final description = isDoctorProfile
+        ? "Estos datos aparecerán en el panel y en las citas."
+        : "Mantén actualizados tus datos de contacto.";
+
     return Scaffold(
-      backgroundColor: fondo,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(22),
@@ -119,28 +143,33 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              const Text(
-                "Completa tu perfil",
+              Text(
+                title,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: colors.text,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Estos datos aparecerán en el panel y en las citas.",
-                style: TextStyle(color: textoSuave, fontSize: 14),
+              Text(
+                description,
+                style: TextStyle(color: colors.muted, fontSize: 14),
               ),
               const SizedBox(height: 28),
-              _input("Nombre del doctor", nombreController, Icons.person),
+              _input(
+                isDoctorProfile ? "Nombre del doctor" : "Nombre completo",
+                nombreController,
+                Icons.person,
+              ),
               _input("Correo", emailController, Icons.email_outlined),
               _input("Teléfono", telefonoController, Icons.phone_outlined),
-              _input(
-                "Especialidad",
-                especialidadController,
-                Icons.medical_services_outlined,
-              ),
+              if (isDoctorProfile)
+                _input(
+                  "Especialidad",
+                  especialidadController,
+                  Icons.medical_services_outlined,
+                ),
               _input(
                 "Nueva contraseña opcional",
                 passwordController,
@@ -188,16 +217,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     bool obscure = false,
     bool isPassword = false,
   }) {
+    final colors = AppColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
         controller: controller,
         obscureText: obscure,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: colors.text),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: textoSuave),
-          prefixIcon: Icon(icon, color: textoSuave),
+          labelStyle: TextStyle(color: colors.muted),
+          prefixIcon: Icon(icon, color: colors.muted),
           suffixIcon: isPassword
               ? IconButton(
                   onPressed: () {
@@ -207,12 +238,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     obscure
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: textoSuave,
+                    color: colors.muted,
                   ),
                 )
               : null,
           filled: true,
-          fillColor: panel,
+          fillColor: colors.panel,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
             borderSide: BorderSide.none,

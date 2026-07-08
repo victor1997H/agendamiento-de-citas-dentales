@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import '../core/theme/app_theme.dart';
 import '../core/utils/validators.dart';
 import '../data/repositories/usuario_repository.dart';
 import '../data/datasources/session_datasource.dart';
 import '../services/device_auth_service.dart';
-import '../widgets/auth_background.dart';
+import '../widgets/auth_components.dart';
 import 'home_admin.dart';
 import 'home_doctor.dart';
 import 'home_user.dart';
@@ -153,286 +154,125 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color azulMate = Color(0xff2F6F88);
-    const Color azulMateOscuro = Color(0xff1F4F63);
-    const Color campoMate = Color(0xff18323B);
+    final colors = AppColors.of(context);
 
-    return Scaffold(
-      backgroundColor: const Color(0xff02050B),
-      body: Stack(
-        fit: StackFit.expand,
+    return AuthScaffold(
+      loading: loading,
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      child: Column(
         children: [
-          const AuthBackground(overlayOpacity: .18),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
-                child: AutofillGroup(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 22,
-                          vertical: 32,
-                        ),
-                        decoration: BoxDecoration(
-                          color: azulMateOscuro.withValues(alpha: .82),
-                          borderRadius: BorderRadius.circular(35),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: .16),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: .25),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            AuthBrandMark(
-                              toothColor: azulMateOscuro,
-                              shineColor: Colors.white.withValues(alpha: .45),
-                            ),
-                            const SizedBox(height: 18),
-                            const Text(
-                              "SmartTooth",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              "Agenda tu cita",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 9,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .14),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Text(
-                                "Inicia sesión con tu cuenta",
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "CORREO",
-                          style: TextStyle(
-                            color: Colors.grey.shade300,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _input(
-                        emailController,
-                        Icons.email_outlined,
-                        campoMate,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [
-                          AutofillHints.username,
-                          AutofillHints.email,
-                        ],
-                      ),
-                      const SizedBox(height: 22),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "CONTRASEÑA",
-                          style: TextStyle(
-                            color: Colors.grey.shade300,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _input(
-                        passwordController,
-                        Icons.lock_outline,
-                        campoMate,
-                        obscure: obscurePassword,
-                        isPassword: true,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.password],
-                        onSubmitted: loading ? null : login,
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ForgotPasswordScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            "¿Olvidaste tu contraseña?",
-                            style: TextStyle(
-                              color: Color(0xffB8D8E0),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 58,
-                        child: ElevatedButton(
-                          onPressed: loading ? null : login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: azulMate,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          child: loading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Text(
-                                  "Ingresar al sistema",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      if (!checkingDeviceAuth && canUseDeviceAuth) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: OutlinedButton.icon(
-                            onPressed: loading ? null : loginWithDeviceAuth,
-                            icon: const Icon(Icons.fingerprint),
-                            label: const Text(
-                                "Entrar con seguridad del dispositivo"),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(
-                                color: Color(0xffB8D8E0),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const RegisterScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          "Crear cuenta",
-                          style: TextStyle(
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                    ],
+          const AuthCard(
+            padding: EdgeInsets.symmetric(horizontal: 22, vertical: 32),
+            radius: 35,
+            darkOpacity: .82,
+            child: AuthHeader(
+              title: "SmartTooth",
+              subtitle: "Agenda tu cita",
+              badge: "Inicia sesión con tu cuenta",
+              markSize: 95,
+              titleSize: 32,
+            ),
+          ),
+          const SizedBox(height: 40),
+          _fieldLabel("CORREO"),
+          const SizedBox(height: 8),
+          AuthTextField(
+            controller: emailController,
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [
+              AutofillHints.username,
+              AutofillHints.email,
+            ],
+          ),
+          const SizedBox(height: 22),
+          _fieldLabel("CONTRASEÑA"),
+          const SizedBox(height: 8),
+          AuthTextField(
+            controller: passwordController,
+            icon: Icons.lock_outline,
+            obscure: obscurePassword,
+            isPassword: true,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.password],
+            onSubmitted: loading ? null : login,
+            onTogglePassword: () {
+              setState(() => obscurePassword = !obscurePassword);
+            },
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ForgotPasswordScreen(),
+                  ),
+                );
+              },
+              child: Text(
+                "¿Olvidaste tu contraseña?",
+                style: TextStyle(color: colors.primary),
+              ),
+            ),
+          ),
+          const SizedBox(height: 15),
+          AuthPrimaryButton(
+            label: "Ingresar al sistema",
+            onPressed: login,
+            loading: loading,
+            height: 58,
+          ),
+          if (!checkingDeviceAuth && canUseDeviceAuth) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: OutlinedButton.icon(
+                onPressed: loading ? null : loginWithDeviceAuth,
+                icon: const Icon(Icons.fingerprint),
+                label: const Text("Entrar con seguridad del dispositivo"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colors.text,
+                  side: BorderSide(color: colors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
               ),
             ),
-          ),
-          if (loading)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                ),
-              ),
+          ],
+          const SizedBox(height: 20),
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+              );
+            },
+            child: Text(
+              "Crear cuenta",
+              style: TextStyle(color: colors.muted),
             ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _input(
-    TextEditingController controller,
-    IconData icon,
-    Color fillColor, {
-    bool obscure = false,
-    bool isPassword = false,
-    TextInputType? keyboardType,
-    TextInputAction? textInputAction,
-    Iterable<String>? autofillHints,
-    VoidCallback? onSubmitted,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      autofillHints: autofillHints,
-      autocorrect: false,
-      enableSuggestions: !isPassword,
-      onSubmitted: (_) => onSubmitted?.call(),
-      style: const TextStyle(
-        color: Colors.white,
-      ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: fillColor.withValues(alpha: .94),
-        prefixIcon: Icon(
-          icon,
-          color: Colors.white70,
-        ),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  obscure
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: Colors.white70,
-                ),
-                onPressed: () {
-                  setState(() {
-                    obscurePassword = !obscurePassword;
-                  });
-                },
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
+  Widget _fieldLabel(String text) {
+    final colors = AppColors.of(context);
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        style: TextStyle(
+          color: colors.muted,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

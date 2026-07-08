@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
+
 class PasswordRequirements extends StatelessWidget {
   final String password;
   final bool visible;
@@ -20,7 +22,7 @@ class PasswordRequirements extends StatelessWidget {
       if (password.length < 8) "Mínimo 8",
       if (!RegExp(r'[A-Z]').hasMatch(password)) "Mayúscula",
       if (!RegExp(r'[a-z]').hasMatch(password)) "Minúscula",
-      if (!RegExp(r'[0-9]').hasMatch(password)) "Número",
+      if (!password.contains(".")) "Punto",
     ];
 
     if (missing.isEmpty) {
@@ -66,8 +68,10 @@ class _RequirementChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        active ? const Color(0xff90E0B3) : Colors.white.withValues(alpha: .68);
+    final colors = AppColors.of(context);
+    final color = active
+        ? const Color(0xff2FA884)
+        : colors.muted.withValues(alpha: colors.isLight ? .95 : .80);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -79,12 +83,12 @@ class _RequirementChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: active
             ? const Color(0xff70C49A).withValues(alpha: .15)
-            : Colors.white.withValues(alpha: .06),
+            : colors.field.withValues(alpha: colors.isLight ? .85 : .35),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: active
-              ? const Color(0xff90E0B3).withValues(alpha: .40)
-              : Colors.white.withValues(alpha: .10),
+              ? const Color(0xff2FA884).withValues(alpha: .35)
+              : colors.border,
         ),
       ),
       child: Row(

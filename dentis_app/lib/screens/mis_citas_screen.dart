@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
 import '../data/models/cita_model.dart';
 import '../data/repositories/cita_repository.dart';
 
@@ -16,11 +17,8 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
   List<CitaModel> citas = [];
   bool loading = true;
 
-  static const fondo = Color(0xff08151B);
-  static const panel = Color(0xff18323B);
-  static const azulOscuro = Color(0xff1F4F63);
-  static const textoSuave = Color(0xff9FC7D3);
-  static const rojo = Color(0xffD95B6A);
+  static const azulOscuro = AppTheme.primaryDark;
+  static const rojo = AppTheme.danger;
   static const naranja = Color(0xffF1B64B);
   static const verde = Color(0xff2FA884);
   static const cancelado = Color(0xff6FA8B8);
@@ -81,12 +79,14 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Scaffold(
-      backgroundColor: fondo,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text("Mis citas"),
-        backgroundColor: fondo,
-        foregroundColor: Colors.white,
+        backgroundColor: colors.background,
+        foregroundColor: colors.text,
         elevation: 0,
         actions: [
           IconButton(
@@ -96,15 +96,16 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
         ],
       ),
       body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? Center(child: CircularProgressIndicator(color: colors.primary))
           : citas.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
                     "Todavia no tienes citas",
-                    style: TextStyle(color: textoSuave),
+                    style: TextStyle(color: colors.muted),
                   ),
                 )
               : RefreshIndicator(
+                  color: colors.primary,
                   onRefresh: cargar,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(18),
@@ -118,8 +119,12 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(15),
                         decoration: BoxDecoration(
-                          color: panel,
+                          color: colors.panel,
                           borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: colors.border),
+                          boxShadow: colors.softShadow == null
+                              ? null
+                              : [colors.softShadow!],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,36 +135,42 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                                   width: 45,
                                   height: 45,
                                   decoration: BoxDecoration(
-                                    color: azulOscuro,
+                                    color: colors.isLight
+                                        ? colors.primary.withValues(alpha: .12)
+                                        : azulOscuro,
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.medical_services,
-                                    color: Colors.white,
+                                    color: colors.isLight
+                                        ? colors.primary
+                                        : Colors.white,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         cita.servicio,
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        style: TextStyle(
+                                          color: colors.text,
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
                                         ),
                                       ),
                                       Text(
                                         cita.doctor,
-                                        style: const TextStyle(color: textoSuave),
+                                        style: TextStyle(color: colors.muted),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
                                     color: color.withValues(alpha: .18),
                                     borderRadius: BorderRadius.circular(20),
@@ -167,11 +178,14 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(estadoIcon(cita), color: color, size: 15),
+                                      Icon(estadoIcon(cita),
+                                          color: color, size: 15),
                                       const SizedBox(width: 4),
                                       Text(
                                         cita.estadoTexto,
-                                        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            color: color,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                     ],
                                   ),
@@ -181,13 +195,13 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                             const SizedBox(height: 12),
                             Text(
                               cita.fechaHoraTexto,
-                              style: const TextStyle(color: Colors.white70),
+                              style: TextStyle(color: colors.subtle),
                             ),
                             if (cita.notas.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Text(
                                 cita.notas,
-                                style: const TextStyle(color: textoSuave),
+                                style: TextStyle(color: colors.muted),
                               ),
                             ],
                             if (!cita.estaCancelada &&
@@ -200,7 +214,8 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                                   onPressed: () => cancelar(cita),
                                   icon: const Icon(Icons.close),
                                   label: const Text("Cancelar"),
-                                  style: TextButton.styleFrom(foregroundColor: rojo),
+                                  style: TextButton.styleFrom(
+                                      foregroundColor: rojo),
                                 ),
                               ),
                             ],
@@ -214,21 +229,29 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
   }
 
   Widget _legend() {
+    final colors = AppColors.of(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: panel,
+        color: colors.panel,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+        boxShadow: colors.softShadow == null ? null : [colors.softShadow!],
       ),
       child: const Wrap(
         spacing: 10,
         runSpacing: 8,
         children: [
-          _LegendItem(color: naranja, icon: Icons.hourglass_empty, text: "Pendiente"),
-          _LegendItem(color: verde, icon: Icons.check_circle_outline, text: "Aceptada"),
-          _LegendItem(color: cancelado, icon: Icons.cancel_outlined, text: "Cancelada"),
-          _LegendItem(color: rojo, icon: Icons.timer_off_outlined, text: "No asistió"),
+          _LegendItem(
+              color: naranja, icon: Icons.hourglass_empty, text: "Pendiente"),
+          _LegendItem(
+              color: verde, icon: Icons.check_circle_outline, text: "Aceptada"),
+          _LegendItem(
+              color: cancelado, icon: Icons.cancel_outlined, text: "Cancelada"),
+          _LegendItem(
+              color: rojo, icon: Icons.timer_off_outlined, text: "No asistió"),
         ],
       ),
     );

@@ -141,7 +141,7 @@ def doctor_disponibilidad():
 
     return jsonify({
         "success": True,
-        "bloques": get_disponibilidad()
+        "bloques": get_disponibilidad(request.user)
     }), 200
 
 
