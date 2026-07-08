@@ -44,8 +44,8 @@ class ApiClient {
     return response.statusCode == 201;
   }
 
-  // ================= FORGOT PASSWORD =================
-  static Future<bool> forgotPassword(String email) async {
+  // ================= PASSWORD RESET =================
+  static Future<bool> requestPasswordResetCode(String email) async {
     final response = await http.post(
       Uri.parse("$baseUrl/forgot-password"),
       headers: {
@@ -59,9 +59,33 @@ class ApiClient {
     return response.statusCode == 200;
   }
 
+  static Future<String?> verifyResetCode(
+    String email,
+    String code,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/verify-reset-code"),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "email": email,
+        "code": code,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    final body = jsonDecode(response.body);
+    return body["reset_token"]?.toString();
+  }
+
   // ================= RESET PASSWORD =================
   static Future<bool> resetPassword(
     String email,
+    String resetToken,
     String newPassword,
   ) async {
     final response = await http.post(
@@ -71,6 +95,7 @@ class ApiClient {
       },
       body: jsonEncode({
         "email": email,
+        "reset_token": resetToken,
         "new_password": newPassword,
       }),
     );

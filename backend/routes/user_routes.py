@@ -5,13 +5,16 @@ import re
 
 from config.jwt_config import SECRET_KEY, ALGORITHM
 from controllers.user_controller import (
+    create_password_reset_code,
+    get_user_by_email,
     login_user,
     register_user,
-    forgot_password_user,
     reset_password_user,
     update_profile_user,
+    verify_password_reset_code,
 )
 from middlewares.jwt_auth import token_required
+from services.email_service import send_password_reset_code, send_welcome_email
 
 user_bp = Blueprint("user_bp", __name__)
 
@@ -91,6 +94,10 @@ def register():
             }), 400
 
         ok = register_user(data)
+        if ok:
+            sent = send_welcome_email(data["email"], data["nombre"])
+            if not sent:
+                print(f"WELCOME EMAIL NOT SENT: {data['email']}")
 
         return jsonify({
             "success": ok,
@@ -101,7 +108,7 @@ def register():
         print("REGISTER ROUTE ERROR:", e)
         return jsonify({
             "success": False,
-            "error": str(e)
+            "message": "Error interno del servidor"
         }), 500
 
 
@@ -144,7 +151,7 @@ def login():
         print("LOGIN ROUTE ERROR:", e)
         return jsonify({
             "success": False,
-            "error": str(e)
+            "message": "Error interno del servidor"
         }), 500
 
 
@@ -197,7 +204,7 @@ def update_profile():
         print("UPDATE PROFILE ROUTE ERROR:", e)
         return jsonify({
             "success": False,
-            "error": str(e)
+            "message": "Error interno del servidor"
         }), 500
 
 
@@ -221,24 +228,79 @@ def forgot_password():
                 "message": "Correo inválido"
             }), 400
 
-        ok = forgot_password_user(email)
-
-        if ok:
+        user = get_user_by_email(email)
+        if not user:
             return jsonify({
                 "success": True,
-                "message": "Correo encontrado"
+                "message": "Si el correo está registrado, recibirás un código de seguridad"
             }), 200
 
+        code = create_password_reset_code(email)
+        if not code:
+            return jsonify({
+                "success": False,
+                "message": "No se pudo generar el código de seguridad"
+            }), 500
+
+        sent = send_password_reset_code(email, code)
+        if not sent:
+            return jsonify({
+                "success": False,
+                "message": "No se pudo enviar el código al correo registrado"
+            }), 503
+
         return jsonify({
-            "success": False,
-            "message": "Correo no encontrado"
-        }), 404
+            "success": True,
+            "message": "Código enviado al correo registrado"
+        }), 200
 
     except Exception as e:
         print("FORGOT PASSWORD ROUTE ERROR:", e)
         return jsonify({
             "success": False,
-            "error": str(e)
+            "message": "Error interno del servidor"
+        }), 500
+
+
+@user_bp.route("/verify-reset-code", methods=["POST"])
+def verify_reset_code():
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data"
+            }), 400
+
+        email = (data.get("email") or "").strip().lower()
+        code = re.sub(r"\D", "", data.get("code") or "")
+
+        if not EMAIL_RE.match(email) or len(code) != 6:
+            return jsonify({
+                "success": False,
+                "message": "Código inválido"
+            }), 400
+
+        reset_token = verify_password_reset_code(email, code)
+
+        if not reset_token:
+            return jsonify({
+                "success": False,
+                "message": "Código incorrecto o vencido"
+            }), 401
+
+        return jsonify({
+            "success": True,
+            "reset_token": reset_token,
+            "message": "Código verificado"
+        }), 200
+
+    except Exception as e:
+        print("VERIFY RESET CODE ROUTE ERROR:", e)
+        return jsonify({
+            "success": False,
+            "message": "Error interno del servidor"
         }), 500
 
 
@@ -256,11 +318,12 @@ def reset_password():
 
         email = (data.get("email") or "").strip().lower()
         new_password = data.get("new_password")
+        reset_token = data.get("reset_token") or ""
 
-        if not EMAIL_RE.match(email) or not new_password:
+        if not EMAIL_RE.match(email) or not new_password or not reset_token:
             return jsonify({
                 "success": False,
-                "message": "Email y nueva contraseña son requeridos"
+                "message": "Código verificado y nueva contraseña son requeridos"
             }), 400
 
         password_error = validate_password(new_password)
@@ -270,7 +333,7 @@ def reset_password():
                 "message": password_error
             }), 400
 
-        ok = reset_password_user(email, new_password)
+        ok = reset_password_user(email, new_password, reset_token)
 
         if ok:
             return jsonify({
@@ -280,12 +343,12 @@ def reset_password():
 
         return jsonify({
             "success": False,
-            "message": "Correo no encontrado"
-        }), 404
+            "message": "La verificación expiró. Solicita un nuevo código"
+        }), 401
 
     except Exception as e:
         print("RESET PASSWORD ROUTE ERROR:", e)
         return jsonify({
             "success": False,
-            "error": str(e)
+            "message": "Error interno del servidor"
         }), 500

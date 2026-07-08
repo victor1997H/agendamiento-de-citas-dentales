@@ -1,7 +1,15 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'secure_field_codec.dart';
+
 class LocalDatabase {
+  static const List<String> _protectedCitaFields = [
+    'paciente',
+    'servicio',
+    'notas',
+  ];
+
   static Database? _database;
 
   static Future<Database> get database async {
@@ -20,9 +28,9 @@ class LocalDatabase {
       'dentis.db',
     );
 
-    return await openDatabase(
+    final db = await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await _createUsuariosTable(db);
         await _createCitasTable(db);
@@ -31,8 +39,14 @@ class LocalDatabase {
         if (oldVersion < 2) {
           await _createCitasTable(db);
         }
+        if (oldVersion < 3) {
+          await _removeStoredPasswords(db);
+        }
       },
     );
+
+    await _encryptLegacyCitaData(db);
+    return db;
   }
 
   static Future<void> _createUsuariosTable(Database db) async {
@@ -42,10 +56,29 @@ class LocalDatabase {
         nombre TEXT,
         email TEXT,
         telefono TEXT,
-        password TEXT,
         sincronizado INTEGER DEFAULT 0
       )
     ''');
+  }
+
+  static Future<void> _removeStoredPasswords(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(usuarios)');
+    final hasPasswordColumn = columns.any(
+      (column) => column['name'] == 'password',
+    );
+
+    if (!hasPasswordColumn) {
+      return;
+    }
+
+    await db.execute('ALTER TABLE usuarios RENAME TO usuarios_legacy');
+    await _createUsuariosTable(db);
+    await db.execute('''
+      INSERT INTO usuarios(id, nombre, email, telefono, sincronizado)
+      SELECT id, nombre, email, telefono, sincronizado
+      FROM usuarios_legacy
+    ''');
+    await db.execute('DROP TABLE usuarios_legacy');
   }
 
   static Future<void> _createCitasTable(Database db) async {
@@ -68,10 +101,11 @@ class LocalDatabase {
     Map<String, dynamic> usuario,
   ) async {
     final db = await database;
+    final safeUser = Map<String, dynamic>.from(usuario)..remove('password');
 
     return await db.insert(
       'usuarios',
-      usuario,
+      safeUser,
     );
   }
 
@@ -102,40 +136,45 @@ class LocalDatabase {
     Map<String, dynamic> cita,
   ) async {
     final db = await database;
+    final protectedCita = await _protectCitaFields({
+      'remoto_id': cita['id'],
+      'paciente': cita['paciente'],
+      'servicio': cita['servicio'] ?? 'Consulta Dental',
+      'fecha': cita['fecha'],
+      'estado': cita['estado'] ?? 'pendiente',
+      'notas': cita['notas'],
+      'sincronizado': cita['sincronizado'] ?? 0,
+      'created_at': DateTime.now().toIso8601String(),
+    });
 
     return await db.insert(
       'citas',
-      {
-        'remoto_id': cita['id'],
-        'paciente': cita['paciente'],
-        'servicio': cita['servicio'] ?? 'Consulta Dental',
-        'fecha': cita['fecha'],
-        'estado': cita['estado'] ?? 'pendiente',
-        'notas': cita['notas'],
-        'sincronizado': cita['sincronizado'] ?? 0,
-        'created_at': DateTime.now().toIso8601String(),
-      },
+      protectedCita,
     );
   }
 
   static Future<List<Map<String, dynamic>>> obtenerCitasLocales() async {
     final db = await database;
 
-    return await db.query(
+    final rows = await db.query(
       'citas',
       orderBy: 'fecha ASC',
     );
+
+    return await _revealCitaRows(rows);
   }
 
   static Future<List<Map<String, dynamic>>> obtenerCitasPendientes() async {
     final db = await database;
 
-    return await db.query(
+    final rows = await db.query(
       'citas',
       where: 'sincronizado = ?',
       whereArgs: [0],
       orderBy: 'fecha ASC',
     );
+
+    return await _revealCitaRows(rows);
   }
 
   static Future<void> marcarCitaSincronizada(
@@ -153,5 +192,63 @@ class LocalDatabase {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  static Future<void> _encryptLegacyCitaData(Database db) async {
+    final rows = await db.query('citas');
+
+    for (final row in rows) {
+      final update = <String, dynamic>{};
+
+      for (final field in _protectedCitaFields) {
+        final value = row[field];
+        if (value == null ||
+            SecureFieldCodec.isEncrypted(value) ||
+            value.toString().isEmpty) {
+          continue;
+        }
+
+        update[field] = await SecureFieldCodec.encryptNullable(value);
+      }
+
+      if (update.isNotEmpty) {
+        await db.update(
+          'citas',
+          update,
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+      }
+    }
+  }
+
+  static Future<Map<String, dynamic>> _protectCitaFields(
+    Map<String, dynamic> cita,
+  ) async {
+    final protected = Map<String, dynamic>.from(cita);
+
+    for (final field in _protectedCitaFields) {
+      protected[field] = await SecureFieldCodec.encryptNullable(cita[field]);
+    }
+
+    return protected;
+  }
+
+  static Future<List<Map<String, dynamic>>> _revealCitaRows(
+    List<Map<String, dynamic>> rows,
+  ) async {
+    final revealedRows = <Map<String, dynamic>>[];
+
+    for (final row in rows) {
+      final revealed = Map<String, dynamic>.from(row);
+
+      for (final field in _protectedCitaFields) {
+        revealed[field] = await SecureFieldCodec.decryptNullable(row[field]);
+      }
+
+      revealedRows.add(revealed);
+    }
+
+    return revealedRows;
   }
 }

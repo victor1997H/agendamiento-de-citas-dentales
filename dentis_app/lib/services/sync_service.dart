@@ -12,25 +12,7 @@ class SyncService {
       return;
     }
 
-    await _sincronizarUsuarios();
     await _sincronizarCitas();
-  }
-
-  static Future<void> _sincronizarUsuarios() async {
-    final pendientes = await LocalDatabase.obtenerPendientes();
-
-    for (var usuario in pendientes) {
-      final enviado = await ApiClient.registrarUsuario({
-        "nombre": usuario["nombre"],
-        "email": usuario["email"],
-        "telefono": usuario["telefono"],
-        "password": usuario["password"],
-      });
-
-      if (enviado) {
-        await LocalDatabase.marcarSincronizado(usuario["id"]);
-      }
-    }
   }
 
   static Future<void> _sincronizarCitas() async {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionDataSource {
@@ -8,6 +9,7 @@ class SessionDataSource {
   static const String _roleKey = 'session_role';
   static const String _lockedKey = 'session_locked';
   static const String _deviceAuthEnabledKey = 'device_auth_enabled';
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   static String token = "";
   static String rol = "";
@@ -15,6 +17,8 @@ class SessionDataSource {
 
   static Future<void> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyPrefsSession(prefs);
+
     final locked = prefs.getBool(_lockedKey) ?? false;
 
     if (locked) {
@@ -22,7 +26,7 @@ class SessionDataSource {
       return;
     }
 
-    _loadFromPrefs(prefs);
+    await _loadFromSecureStorage();
 
     if (token.isNotEmpty && _isTokenExpired(token)) {
       await clear();
@@ -38,16 +42,17 @@ class SessionDataSource {
     rol = user["rol"] ?? "";
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
-    await prefs.setString(_userKey, jsonEncode(user));
-    await prefs.setString(_roleKey, rol);
+    await _secureStorage.write(key: _tokenKey, value: token);
+    await _secureStorage.write(key: _userKey, value: jsonEncode(user));
+    await _secureStorage.write(key: _roleKey, value: rol);
+    await _removeLegacyPrefsSession(prefs);
     await prefs.setBool(_lockedKey, false);
   }
 
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     final deviceAuthEnabled = prefs.getBool(_deviceAuthEnabledKey) ?? false;
-    final hasStoredSession = (prefs.getString(_tokenKey) ?? "").isNotEmpty;
+    final hasStoredSession = await _hasStoredSession();
 
     if (deviceAuthEnabled && hasStoredSession) {
       await prefs.setBool(_lockedKey, true);
@@ -60,9 +65,10 @@ class SessionDataSource {
 
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userKey);
-    await prefs.remove(_roleKey);
+    await _secureStorage.delete(key: _tokenKey);
+    await _secureStorage.delete(key: _userKey);
+    await _secureStorage.delete(key: _roleKey);
+    await _removeLegacyPrefsSession(prefs);
     await prefs.remove(_lockedKey);
     await prefs.setBool(_deviceAuthEnabledKey, false);
     _clearMemory();
@@ -70,13 +76,16 @@ class SessionDataSource {
 
   static Future<bool> restoreLockedSession() async {
     final prefs = await SharedPreferences.getInstance();
-    final deviceAuthEnabled = prefs.getBool(_deviceAuthEnabledKey) ?? false;
+    await _migrateLegacyPrefsSession(prefs);
 
-    if (!deviceAuthEnabled || (prefs.getString(_tokenKey) ?? "").isEmpty) {
+    final deviceAuthEnabled = prefs.getBool(_deviceAuthEnabledKey) ?? false;
+    final hasStoredSession = await _hasStoredSession();
+
+    if (!deviceAuthEnabled || !hasStoredSession) {
       return false;
     }
 
-    _loadFromPrefs(prefs);
+    await _loadFromSecureStorage();
 
     if (token.isNotEmpty && _isTokenExpired(token)) {
       await clear();
@@ -89,8 +98,10 @@ class SessionDataSource {
 
   static Future<bool> canUseDeviceAuthLogin() async {
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyPrefsSession(prefs);
+
     return (prefs.getBool(_deviceAuthEnabledKey) ?? false) &&
-        (prefs.getString(_tokenKey) ?? "").isNotEmpty;
+        (await _hasStoredSession());
   }
 
   static Future<bool> isDeviceAuthEnabled() async {
@@ -113,11 +124,11 @@ class SessionDataSource {
   static bool get isDoctor => rol == "doctor";
   static bool get isUser => rol == "usuario";
 
-  static void _loadFromPrefs(SharedPreferences prefs) {
-    token = prefs.getString(_tokenKey) ?? "";
-    rol = prefs.getString(_roleKey) ?? "";
+  static Future<void> _loadFromSecureStorage() async {
+    token = await _secureStorage.read(key: _tokenKey) ?? "";
+    rol = await _secureStorage.read(key: _roleKey) ?? "";
 
-    final userJson = prefs.getString(_userKey);
+    final userJson = await _secureStorage.read(key: _userKey);
     if (userJson == null || userJson.isEmpty) {
       user = {};
       return;
@@ -131,6 +142,48 @@ class SessionDataSource {
     } else {
       user = {};
     }
+
+    if (rol.isEmpty) {
+      rol = user["rol"]?.toString() ?? "";
+    }
+  }
+
+  static Future<void> _migrateLegacyPrefsSession(
+    SharedPreferences prefs,
+  ) async {
+    final secureToken = await _secureStorage.read(key: _tokenKey);
+    final legacyToken = prefs.getString(_tokenKey);
+    final legacyUser = prefs.getString(_userKey);
+    final legacyRole = prefs.getString(_roleKey);
+
+    if ((secureToken == null || secureToken.isEmpty) &&
+        legacyToken != null &&
+        legacyToken.isNotEmpty) {
+      await _secureStorage.write(key: _tokenKey, value: legacyToken);
+
+      if (legacyUser != null && legacyUser.isNotEmpty) {
+        await _secureStorage.write(key: _userKey, value: legacyUser);
+      }
+
+      if (legacyRole != null && legacyRole.isNotEmpty) {
+        await _secureStorage.write(key: _roleKey, value: legacyRole);
+      }
+    }
+
+    await _removeLegacyPrefsSession(prefs);
+  }
+
+  static Future<void> _removeLegacyPrefsSession(
+    SharedPreferences prefs,
+  ) async {
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
+    await prefs.remove(_roleKey);
+  }
+
+  static Future<bool> _hasStoredSession() async {
+    final storedToken = await _secureStorage.read(key: _tokenKey);
+    return storedToken != null && storedToken.isNotEmpty;
   }
 
   static void _clearMemory() {

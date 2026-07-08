@@ -3,7 +3,7 @@ class UsuarioModel {
   final String nombre;
   final String email;
   final String telefono;
-  final String password;
+  final String? password;
   final String rol;
 
   UsuarioModel({
@@ -11,7 +11,7 @@ class UsuarioModel {
     required this.nombre,
     required this.email,
     required this.telefono,
-    required this.password,
+    this.password,
     this.rol = "usuario",
   });
 
@@ -20,19 +20,17 @@ class UsuarioModel {
       "nombre": nombre,
       "email": email,
       "telefono": telefono,
-      "password": password,
+      if (password != null) "password": password,
       "rol": rol,
     };
   }
 
-  // 🔥 OPCIONAL (recomendado): para leer desde backend
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
     return UsuarioModel(
       id: json["id"],
       nombre: json["nombre"],
       email: json["email"],
       telefono: json["telefono"] ?? "",
-      password: json["password"] ?? "",
       rol: json["rol"] ?? "usuario",
     );
   }

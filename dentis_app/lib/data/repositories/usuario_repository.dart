@@ -13,15 +13,23 @@ class UsuarioRepository {
     return await ApiClient.login(email, password);
   }
 
-  Future<bool> forgotPassword(String email) async {
-    return await ApiClient.forgotPassword(email);
+  Future<bool> requestPasswordResetCode(String email) async {
+    return await ApiClient.requestPasswordResetCode(email);
+  }
+
+  Future<String?> verifyResetCode(
+    String email,
+    String code,
+  ) async {
+    return await ApiClient.verifyResetCode(email, code);
   }
 
   Future<bool> resetPassword(
     String email,
+    String resetToken,
     String newPassword,
   ) async {
-    return await ApiClient.resetPassword(email, newPassword);
+    return await ApiClient.resetPassword(email, resetToken, newPassword);
   }
 
   Future<Map<String, dynamic>?> actualizarPerfil(

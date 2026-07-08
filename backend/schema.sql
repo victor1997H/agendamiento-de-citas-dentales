@@ -94,6 +94,18 @@ CREATE TABLE IF NOT EXISTS notificaciones (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    reset_token_hash TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    expires_at TIMESTAMPTZ NOT NULL,
+    token_expires_at TIMESTAMPTZ,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 INSERT INTO servicios(nombre, descripcion, duracion_minutos)
 VALUES
     ('Limpieza Dental', 'Profilaxis y limpieza dental preventiva', 45),
@@ -120,6 +132,8 @@ CREATE INDEX IF NOT EXISTS idx_citas_usuario_id ON citas(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_citas_doctor_id ON citas(doctor_id);
 CREATE INDEX IF NOT EXISTS idx_citas_fecha ON citas(fecha);
 CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leida);
+CREATE INDEX IF NOT EXISTS idx_password_reset_codes_user_active
+ON password_reset_codes(user_id, used_at, created_at DESC);
 
 DROP INDEX IF EXISTS ux_citas_doctor_fecha_activas;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_citas_doctor_fecha_activas
